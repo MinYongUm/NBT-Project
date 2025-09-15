@@ -2,7 +2,7 @@
 
 ### 1. 프로젝트 개요
 
-**NBT, Network Backup Tools?**
+**NBT, Network Backup Tools?**</br>
 Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 CLI 기반 자동화 Tools입니다. 
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다. 
 
