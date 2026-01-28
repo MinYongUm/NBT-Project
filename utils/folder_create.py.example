@@ -1,0 +1,23 @@
+# 백업 폴더 생성 모듈
+# 실제 사용 시 이 파일을 folder_create.py로 복사 후 ROOT_PATH 수정하세요
+
+import os
+from datetime import datetime
+
+# =================================================================
+# 백업 파일 저장 경로 (본인 환경에 맞게 수정)
+# =================================================================
+ROOT_PATH = r'C:\Users\YourUsername\Desktop\backup_folder'
+
+# =================================================================
+# 동적 폴더 생성 (실행 시간 기반)
+# =================================================================
+current_time = datetime.now()
+folder_name = current_time.strftime('%Y%m%d_%H%M')
+full_folder_path = os.path.join(ROOT_PATH, folder_name)
+
+if not os.path.exists(full_folder_path):
+    os.makedirs(full_folder_path)
+    print(f"[폴더 생성] {full_folder_path}")
+else:
+    print(f"[폴더 존재] {full_folder_path}")

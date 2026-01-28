@@ -1,0 +1,30 @@
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 민감정보 파일 (실제 계정, IP, 경로 포함)
+config/account_info.py
+config/device_list.py
+utils/folder_create.py
+
+# 백업 결과 및 로그
+backup_results/
+logs/
+*.log
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 환경 설정
+.env
+*.ini
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+# 장비 접속 계정 정보
+# 실제 사용 시 이 파일을 account_info.py로 복사 후 수정하세요
+
+USERNAME = "your_username"
+PASSWORD = "your_password"
