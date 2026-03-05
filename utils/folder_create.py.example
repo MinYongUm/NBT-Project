@@ -1,8 +1,16 @@
-# 백업 폴더 생성 모듈
-# 실제 사용 시 이 파일을 folder_create.py로 복사 후 ROOT_PATH 수정하세요
+"""
+백업  폴더 관리 모듈
+-실제 사용 시 이 파일을 folder_create.py로 복사 후 사용하세요.
+
+백업 저장 경로 관리
+- 환경변수 NBT_BACKUP_ROOT로 경로 지정 가능.
+- Docker: docker-compose.yml에서 설정.
+- Windows: 환경변수 또는 아래 DEFAULT_ROOT 수정.
+"""
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 # =================================================================
 # 백업 파일 저장 경로 (본인 환경에 맞게 수정)
@@ -21,3 +29,58 @@ if not os.path.exists(full_folder_path):
     print(f"[폴더 생성] {full_folder_path}")
 else:
     print(f"[폴더 존재] {full_folder_path}")
+
+# =================================================================
+# 백업 루트 경로 설정
+# =================================================================
+# 우선순위: 환경변수 > 기본값
+# Docker 환경: docker-compose.yml에서 NBT_BACKUP_ROOT=/data/backup 설정
+# Windows 환경: 환경변수 설정 또는 아래 기본값 수정
+DEFAULT_ROOT = '/data/backup'
+
+
+def get_backup_root():
+    """백업 루트 경로를 반환합니다."""
+    root = os.environ.get('NBT_BACKUP_ROOT', DEFAULT_ROOT)
+    return Path(root)
+
+
+# =================================================================
+# 폴더 생성 함수
+# =================================================================
+def create_backup_folder():
+    """
+    타임스탬프 기반 백업 폴더를 생성합니다.
+
+    예: /data/backup/20260305_1430/
+
+    Returns:
+        Path: 생성된 백업 폴더 경로
+    """
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+    backup_path = get_backup_root() / timestamp
+    backup_path.mkdir(parents=True, exist_ok=True)
+    print(f"[폴더 생성] {backup_path}")
+    return backup_path
+
+
+def create_log_folder():
+    """
+    로그 폴더를 생성합니다.
+
+    예: /data/backup/logs/
+
+    Returns:
+        Path: 로그 폴더 경로
+    """
+    log_path = get_backup_root() / 'logs'
+    log_path.mkdir(parents=True, exist_ok=True)
+    return log_path
+
+
+# =================================================================
+# 하위 호환용 (기존 코드에서 folder_create.full_folder_path 사용 시)
+# =================================================================
+# 주의: 이 변수는 Step 1 완료 후 backup.py가 수정되면 제거됩니다.
+# 기존 방식대로 import 시점에 폴더를 생성합니다.
+full_folder_path = str(create_backup_folder())
