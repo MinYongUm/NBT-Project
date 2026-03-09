@@ -10,10 +10,17 @@ config/account_info.py
 config/device_list.py
 utils/folder_create.py
 
+# 향후 YAML 설정 파일 (Step 2 대비)
+config/settings.yaml
+
 # 백업 결과 및 로그
 backup_results/
+backup/
 logs/
 *.log
+
+# Docker 관련
+.env
 
 # IDE 설정
 .vscode/
@@ -22,7 +29,6 @@ logs/
 *.swo
 
 # 환경 설정
-.env
 *.ini
 
 # OS 생성 파일

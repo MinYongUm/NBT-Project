@@ -7,16 +7,14 @@ Update History:
 - ver 1.0 (2025/09/15): Netmiko 라이브러리로 마이그레이션, 다중 장비 그룹 지원
 - ver 1.1 (2025/09/15): logging 기능 추가, 재시도 횟수 5회로 증가
 - ver 1.2 (2025/09/22): session_timeout 30초로 변경
-- ver 2.0-alpha: Docker 환경 적응, pathlib 전환, 함수 기반 구조
+- ver 2.0-alpha: Docker 환경 적용, pathlib 전환, 함수 기반 구조
 """
 
 from netmiko import ConnectHandler
-import os
 import time
 import logging
 from pathlib import Path
 from config import account_info, command_list, device_list
-# from utils import folder_create
 from utils.folder_create import create_backup_folder, create_log_folder
 
 # =================================================================
@@ -44,24 +42,15 @@ TASKS = [
 ]
 
 # =================================================================
-# 계정 정보 및 폴더 경로
+# 계정 정보
 # =================================================================
 USERNAME = account_info.USERNAME
 PASSWORD = account_info.PASSWORD
-#FULL_FOLDER_PATH = folder_create.full_folder_path
+
 
 # =================================================================
 # 로깅 설정
 # =================================================================
-# log_file_path = os.path.join(FULL_FOLDER_PATH, 'nbt_backup.log')
-
-# logging.basicConfig(
-#     filename=log_file_path,
-#     level=logging.INFO,
-#     format='%(asctime)s - %(levelname)s - %(message)s',
-#     encoding='utf-8'
-# )
-
 def setup_logging(log_folder):
     """로그 폴더에 로깅을 설정합니다."""
     log_file = log_folder / 'nbt_backup.log'
@@ -72,29 +61,10 @@ def setup_logging(log_folder):
         encoding='utf-8'
     )
 
+
 # =================================================================
 # 백업 실행
 # =================================================================
-# def run_backup():
-#     """전체 백업 작업 실행"""
-#     logging.info("===== NBT 백업 스크립트 시작 =====")
-    
-#     for task in TASKS:
-#         group_name = task['group_name']
-#         devices = task['devices']
-#         commands = task['commands']
-#         device_type = task['device_type']
-
-#         print(f"\n############################################################")
-#         print(f"## 시작: {group_name} 장비 그룹 백업")
-#         print(f"############################################################\n")
-#         logging.info(f"===== 시작: {group_name} 장비 그룹 백업 =====")
-        
-#         for device in devices:
-#             backup_device(device['host'], device_type, commands)
-
-#     logging.info("===== NBT 백업 스크립트 종료 =====")
-    
 def run_backup():
     """전체 백업 작업 실행"""
     # 폴더 생성 (실행 시점에 호출)
@@ -119,10 +89,9 @@ def run_backup():
         for device in devices:
             backup_device(device['host'], device_type, commands, backup_folder)
 
-    logging.info("===== NBT 백업 스크립트 종료 =====")    
+    logging.info("===== NBT 백업 스크립트 종료 =====")
 
 
-# def backup_device(host, device_type, commands):
 def backup_device(host, device_type, commands, backup_folder):
     """개별 장비 백업 수행"""
     device_params = {
@@ -147,9 +116,8 @@ def backup_device(host, device_type, commands, backup_folder):
                 logging.info(f"[{host} >> {hostname}] 연결 성공.")
 
                 file_name = f"{hostname}.txt"
-                # file_path = os.path.join(FULL_FOLDER_PATH, file_name)
                 file_path = backup_folder / file_name
-                print(f"[{host} >> {hostname}] 로그 파일 생성 경로: {file_path}")
+                print(f"[{host} >> {hostname}] 백업 파일 경로: {file_path}")
 
                 full_output = ""
                 for command in commands:
@@ -157,9 +125,7 @@ def backup_device(host, device_type, commands, backup_folder):
                     output = net_connect.send_command(command)
                     full_output += f"\n\n{'='*10} {command} {'='*10}\n\n{output}"
 
-                # with open(file_path, 'w', encoding='utf-8') as f:
-                #     f.write(full_output.strip())
-                file_path.write_text(full_output.strip(), encoding='utf-8')    
+                file_path.write_text(full_output.strip(), encoding='utf-8')
 
                 print(f"[{host} >> {hostname}] 백업 완료: {file_path}")
                 logging.info(f"[{host} >> {hostname}] 백업 파일 저장 성공: {file_path}")
