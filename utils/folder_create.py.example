@@ -13,24 +13,6 @@ from datetime import datetime
 from pathlib import Path
 
 # =================================================================
-# 백업 파일 저장 경로 (본인 환경에 맞게 수정)
-# =================================================================
-ROOT_PATH = r'C:\Users\YourUsername\Desktop\backup_folder'
-
-# =================================================================
-# 동적 폴더 생성 (실행 시간 기반)
-# =================================================================
-current_time = datetime.now()
-folder_name = current_time.strftime('%Y%m%d_%H%M')
-full_folder_path = os.path.join(ROOT_PATH, folder_name)
-
-if not os.path.exists(full_folder_path):
-    os.makedirs(full_folder_path)
-    print(f"[폴더 생성] {full_folder_path}")
-else:
-    print(f"[폴더 존재] {full_folder_path}")
-
-# =================================================================
 # 백업 루트 경로 설정
 # =================================================================
 # 우선순위: 환경변수 > 기본값
@@ -76,11 +58,3 @@ def create_log_folder():
     log_path = get_backup_root() / 'logs'
     log_path.mkdir(parents=True, exist_ok=True)
     return log_path
-
-
-# =================================================================
-# 하위 호환용 (기존 코드에서 folder_create.full_folder_path 사용 시)
-# =================================================================
-# 주의: 이 변수는 Step 1 완료 후 backup.py가 수정되면 제거됩니다.
-# 기존 방식대로 import 시점에 폴더를 생성합니다.
-full_folder_path = str(create_backup_folder())
