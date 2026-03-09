@@ -1,0 +1,80 @@
+# NBT-Project 장비별 백업 명령어 정의
+# command_list.py를 대체합니다.
+#
+# 명령어 추가/수정 시 이 파일만 편집하면 됩니다.
+# 코드 수정 없이 명령어 관리가 가능합니다.
+
+# =================================================================
+# MGMT 장비 명령어 (Cisco IOS / IOS-XE)
+# =================================================================
+mgmt:
+  - terminal length 0
+  - show version
+  - show int status
+  - show int count errors
+  - show ip int brief
+  - show ip route
+  - show int trunk
+  - show int transceiver detail
+  - show spanning-tree su
+  - show spanning-tree root
+  - show spanning-tree
+  - show vlan brief
+  - show module
+  - show ntp status
+  - show boot
+  - show running-config
+  - show log
+  - terminal length 49
+
+# =================================================================
+# NEXUS 장비 명령어 (Cisco NX-OS)
+# =================================================================
+nexus:
+  - terminal length 0
+  - show version
+  - show int status
+  - show int count errors
+  - show ip int brief vrf all
+  - show ip route vrf all
+  - show int trunk
+  - show int transceiver detail
+  - show port-channel su
+  - show spanning-tree su
+  - show spanning-tree root
+  - show spanning-tree
+  - show vlan brief
+  - show hsrp brief
+  - show system resources
+  - show env
+  - show core
+  - show module
+  - show ntp peers
+  - show ntp status
+  - show boot
+  - show running-config
+  - show logging log
+  - terminal length 49
+
+# =================================================================
+# ACI 장비 명령어 (Cisco ACI Spine/Leaf)
+# =================================================================
+aci:
+  - show int status
+  - show version
+  - show int count errors
+  - show ip int brief vrf all
+  - show ip route vrf all
+  - show int trunk
+  - show int transceiver detail
+  - show port-channel su
+  - show mcp internal info vlan all
+  - show vlan brief
+  - show hsrp brief
+  - show system resources
+  - show env
+  - show core
+  - show module
+  - show ntp peers
+  - show lldp neighbors
+  - show cdp neighbors

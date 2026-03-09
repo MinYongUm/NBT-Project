@@ -1,0 +1,33 @@
+# NBT-Project 통합 설정 파일 템플릿
+# 실제 사용 시 이 파일을 config/settings.yaml로 복사 후 값을 채우세요.
+#
+# 주의사항:
+#   - username, password는 이 파일에 작성하지 마세요.
+#   - 계정 정보는 반드시 .env 파일 또는 환경변수로 관리합니다.
+
+# 장비 목록
+# device_type 허용값: cisco_ios / cisco_nxos
+devices:
+  mgmt:
+    device_type: cisco_ios
+    hosts:
+      - 10.x.x.1
+      - 10.x.x.2
+
+  nexus:
+    device_type: cisco_nxos
+    hosts:
+      - 10.x.x.10
+      - 10.x.x.11
+
+  aci:
+    device_type: cisco_nxos
+    hosts:
+      - 10.x.x.20
+      - 10.x.x.21
+
+# 백업 동작 설정
+backup:
+  max_retries: 5
+  retry_delay: 10
+  session_timeout: 30
