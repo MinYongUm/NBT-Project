@@ -1,5 +1,5 @@
 # NBT-Project
-
+> Current Version: v2.1
 ## 1. 프로젝트 개요
 Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 CLI 기반 자동화 도구입니다.
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다.
@@ -120,8 +120,8 @@ v1.x  : Netmiko
   v1.2  - session_timeout 30초
 
 v2.x  : Docker + 자동화
-  v2.0  - Docker 환경 마이그레이션                [완료]
-  v2.1  - YAML 설정 전환, 보안 적용               [완료]
+  v2.0  - Docker 환경 마이그레이션
+  v2.1  - YAML 설정 전환, 보안 적용
   v2.2  - 데이터 구조화 (AI 분석 대비)
   v2.3  - 병렬 실행 (concurrent.futures)
 
