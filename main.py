@@ -1,6 +1,6 @@
 """
 NBT (Network Backup Tools)
-Cisco 네트워크 장비 자동 백업 도구
+Cisco 네트워크 장비 자동 백업 및 Config Diff 감지 도구
 
 사용법:
     python main.py
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     print("""
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
-    ║     NBT (Network Backup Tools) v1.2                       ║
+    ║     NBT (Network Backup Tools) v3.0                       ║
     ║     Cisco Network Device Backup Automation                ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝

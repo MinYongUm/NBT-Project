@@ -1,6 +1,8 @@
 # NBT-Project
-> Current Version: v2.1
+> Current Version: v3.0
+
 ## 1. 프로젝트 개요
+
 Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 CLI 기반 자동화 도구입니다.
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다.
 
@@ -9,37 +11,46 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 - 백업 저장 위치: Ubuntu 호스트 `~/nbt-backup` (볼륨 마운트)
 
 ## 2. 주요 기능
+
 - 다중 벤더/OS 동시 지원 (Cisco IOS, IOS-XE, NX-OS)
 - 간헐적 네트워크 오류에 대응하는 자동 재시도 로직
 - 실행 시간 기반 동적 폴더 생성 및 결과 파일 저장
 - 성공/실패 이력을 기록하는 파일 로깅 시스템
 - YAML 기반 설정 관리 (코드 수정 없이 장비/명령어 변경 가능)
 - 계정 정보 환경변수 분리 (.env 기반 보안 관리)
+- ThreadPoolExecutor 기반 병렬 백업 (max_workers 설정으로 제어)
+- Config Diff 감지: 직전 백업과 비교하여 실제 설정 변경만 감지 (노이즈 필터링 적용)
+- SQLite DB 이력 관리: 백업 실행 결과 및 Config Diff 결과 누적 저장
 
 ## 3. 프로젝트 구조
+
 ```
 NBT-Project/
 ├── config/
 │   ├── commands.yaml           # 장비별 백업 명령어
-│   └── settings.yaml.example   # 장비 목록 + 백업 설정 템플릿
+│   └── settings.yaml.example  # 장비 목록 + 백업 설정 + Diff 설정 템플릿
 ├── core/
-│   └── backup.py               # 백업 실행 메인 로직
+│   └── backup.py              # 백업 실행 메인 로직
 ├── utils/
-│   ├── config_loader.py        # YAML 파서 + 환경변수 수신
-│   └── folder_create.py        # 백업/로그 폴더 생성
-├── .env.example                # 환경변수 템플릿
+│   ├── config_loader.py       # YAML 파서 + 환경변수 수신
+│   ├── db_manager.py          # SQLite 백업 이력 및 Config Diff 저장
+│   └── folder_create.py       # 백업/로그 폴더 생성
+├── .env.example               # 환경변수 템플릿
 ├── Dockerfile
 ├── docker-compose.yml
 ├── main.py
 └── requirements.txt
 ```
+
 ## 4. 설치 및 실행
 
 ### 4-1. 요구사항
+
 - Docker, docker-compose
-- EVE-NG 또는 실제 운영 장비(Cisco 기준)
+- EVE-NG 또는 실제 운영 장비 (Cisco 기준)
 
 ### 4-2. 초기 설정
+
 ```bash
 # 1. 저장소 클론
 git clone https://github.com/MinYongUm/NBT-Project.git
@@ -55,7 +66,7 @@ cp config/settings.yaml.example config/settings.yaml
 # config/settings.yaml에 실제 장비 IP 입력
 ```
 
-### 4-3. env 설정
+### 4-3. .env 설정
 
 ```bash
 NBT_USERNAME=your_username
@@ -87,6 +98,13 @@ backup:
   max_retries: 5
   retry_delay: 10
   session_timeout: 30
+  max_workers: 4
+
+diff:
+  noise_patterns:
+    - "uptime is"
+    - "Last reload"
+    # 필요 시 추가 (재빌드 없이 즉시 반영)
 ```
 
 ### 4-5. 실행
@@ -96,7 +114,7 @@ backup:
 docker compose build
 
 # 백업 실행
-docker compose run --rm nbt-engine python main.py
+docker compose run --rm nbt-engine
 ```
 
 백업 결과는 Ubuntu 호스트 `~/nbt-backup/YYYYMMDD_HHMM/` 폴더에 저장됩니다.
@@ -122,11 +140,11 @@ v1.x  : Netmiko
 v2.x  : Docker + 자동화
   v2.0  - Docker 환경 마이그레이션
   v2.1  - YAML 설정 전환, 보안 적용
-  v2.2  - 데이터 구조화 (AI 분석 대비)
-  v2.3  - 병렬 실행 (concurrent.futures)
+  v2.2  - SQLite DB 연동, 백업 이력 저장
+  v2.3  - ThreadPoolExecutor 병렬 실행
 
 v3.x  : 고도화
-  v3.0  - Config Diff + DB 저장 (difflib + SQLite)
+  v3.0  - Config Diff 감지, 노이즈 필터링    ← 현재 버전
   v3.1  - CLI + 알림 (Typer + Slack/Email)
 
 v4.x  : AI
