@@ -1,12 +1,12 @@
 # NBT-Project
-> Current Version: v3.0
+> Current Version: v3.1
 
 ## 1. 프로젝트 개요
 
 Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 CLI 기반 자동화 도구입니다.
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다.
 
-- 언어/프레임워크: Python 3.11, Netmiko
+- 언어/프레임워크: Python 3.11, Netmiko, Typer
 - 실행 환경: Docker (docker-compose)
 - 백업 저장 위치: Ubuntu 호스트 `~/nbt-backup` (볼륨 마운트)
 
@@ -21,6 +21,8 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 - ThreadPoolExecutor 기반 병렬 백업 (max_workers 설정으로 제어)
 - Config Diff 감지: 직전 백업과 비교하여 실제 설정 변경만 감지 (노이즈 필터링 적용)
 - SQLite DB 이력 관리: 백업 실행 결과 및 Config Diff 결과 누적 저장
+- Typer CLI: backup / history / diff 서브커맨드 (v3.1)
+- 알림 연동: Slack Webhook + Email(SMTP) (v3.1)
 
 ## 3. 프로젝트 구조
 
@@ -28,17 +30,18 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 NBT-Project/
 ├── config/
 │   ├── commands.yaml           # 장비별 백업 명령어
-│   └── settings.yaml.example  # 장비 목록 + 백업 설정 + Diff 설정 템플릿
+│   └── settings.yaml.example  # 장비 목록 + 백업 설정 + Diff 설정 + 알림 설정 템플릿
 ├── core/
 │   └── backup.py              # 백업 실행 메인 로직
 ├── utils/
 │   ├── config_loader.py       # YAML 파서 + 환경변수 수신
 │   ├── db_manager.py          # SQLite 백업 이력 및 Config Diff 저장
-│   └── folder_create.py       # 백업/로그 폴더 생성
+│   ├── folder_create.py       # 백업/로그 폴더 생성
+│   └── notifier.py            # Slack Webhook + Email(SMTP) 알림 (v3.1)
 ├── .env.example               # 환경변수 템플릿
 ├── Dockerfile
 ├── docker-compose.yml
-├── main.py
+├── main.py                    # Typer CLI 진입점
 └── requirements.txt
 ```
 
@@ -64,15 +67,26 @@ chmod 600 .env
 # 3. 설정 파일 생성
 cp config/settings.yaml.example config/settings.yaml
 # config/settings.yaml에 실제 장비 IP 입력
+
+# 4. 이미지 빌드
+docker compose build
 ```
 
 ### 4-3. .env 설정
 
 ```bash
+# 필수
 NBT_USERNAME=your_username
 NBT_PASSWORD=your_password
 NBT_BACKUP_ROOT=/data/backup
 TZ=Asia/Seoul
+
+# 선택 — Slack 알림
+# NBT_SLACK_WEBHOOK=https://hooks.slack.com/services/XXX/YYY/ZZZ
+
+# 선택 — Email 알림 (Gmail 앱 비밀번호 사용)
+# NBT_SMTP_USER=your_email@gmail.com
+# NBT_SMTP_PASSWORD=your_app_password
 ```
 
 ### 4-4. config/settings.yaml 설정
@@ -89,11 +103,6 @@ devices:
     hosts:
       - 10.x.x.10
 
-  aci:
-    device_type: cisco_nxos
-    hosts:
-      - 10.x.x.20
-
 backup:
   max_retries: 5
   retry_delay: 10
@@ -104,17 +113,46 @@ diff:
   noise_patterns:
     - "uptime is"
     - "Last reload"
-    # 필요 시 추가 (재빌드 없이 즉시 반영)
+
+notify:
+  slack:
+    enabled: false
+    webhook_url: ""
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    from_addr: "nbt-alert@example.com"
+    to_addrs:
+      - "admin@example.com"
+  events:
+    on_device_failure: true
+    on_diff_detected:  true
+    on_summary:        true
 ```
 
 ### 4-5. 실행
 
 ```bash
-# 이미지 빌드
-docker compose build
+# 전체 백업
+docker compose run --rm nbt-engine python main.py backup
 
-# 백업 실행
-docker compose run --rm nbt-engine
+# 특정 그룹만 백업
+docker compose run --rm nbt-engine python main.py backup --group mgmt
+
+# 설정 검증만 (실제 장비 접속 없음)
+docker compose run --rm nbt-engine python main.py backup --dry-run
+
+# 최근 백업 이력 조회
+docker compose run --rm nbt-engine python main.py history
+docker compose run --rm nbt-engine python main.py history --limit 10
+
+# 최근 Config Diff 조회
+docker compose run --rm nbt-engine python main.py diff
+docker compose run --rm nbt-engine python main.py diff --limit 20
+
+# 도움말
+docker compose run --rm nbt-engine python main.py --help
 ```
 
 백업 결과는 Ubuntu 호스트 `~/nbt-backup/YYYYMMDD_HHMM/` 폴더에 저장됩니다.
@@ -124,6 +162,7 @@ docker compose run --rm nbt-engine
 - `.env` 파일은 절대 Git에 push하지 마세요 (.gitignore에 등록되어 있습니다)
 - `config/settings.yaml`은 장비 IP가 포함되므로 Git에 push하지 마세요
 - 계정 정보는 반드시 `.env` 또는 환경변수로만 관리합니다
+- Slack Webhook URL, SMTP 계정은 환경변수(`NBT_SLACK_WEBHOOK`, `NBT_SMTP_USER`, `NBT_SMTP_PASSWORD`)로 관리합니다
 - `config/settings.yaml.example`, `.env.example`은 실제 값 없는 템플릿만 Git에 올립니다
 
 ## 6. 개발 로드맵
@@ -144,8 +183,8 @@ v2.x  : Docker + 자동화
   v2.3  - ThreadPoolExecutor 병렬 실행
 
 v3.x  : 고도화
-  v3.0  - Config Diff 감지, 노이즈 필터링    ← 현재 버전
-  v3.1  - CLI + 알림 (Typer + Slack/Email)
+  v3.0  - Config Diff 감지, 노이즈 필터링
+  v3.1  - Typer CLI, 알림(Slack/Email)       ← 현재 버전
 
 v4.x  : AI
   v4.0  - AI 장애 분석, RAG + MCP 서버
