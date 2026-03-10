@@ -111,11 +111,24 @@ docker compose run --rm nbt-engine python main.py
 ## 6. 개발 로드맵
 
 ```
-Step 1: Docker 환경 적응         [완료]
-Step 2: YAML 설정 전환           [완료]
-Step 3: 데이터 구조화            (AI 분석 대비)
-Step 4: 병렬 실행               (concurrent.futures)
-Step 5: Config Diff + DB 저장   (difflib + SQLite)
-Step 6: CLI + 알림              (Typer + Slack/Email)
-Step 7: AI 장애 분석            (RAG + MCP 서버)
+v0.x  : Paramiko
+  v0.1  - Paramiko 기반 단일 장비 백업
+
+v1.x  : Netmiko
+  v1.0  - Netmiko 마이그레이션, 다중 장비 그룹 지원
+  v1.1  - logging 추가, 재시도 5회
+  v1.2  - session_timeout 30초
+
+v2.x  : Docker + 자동화
+  v2.0  - Docker 환경 마이그레이션                [완료]
+  v2.1  - YAML 설정 전환, 보안 적용               [완료]
+  v2.2  - 데이터 구조화 (AI 분석 대비)
+  v2.3  - 병렬 실행 (concurrent.futures)
+
+v3.x  : 고도화
+  v3.0  - Config Diff + DB 저장 (difflib + SQLite)
+  v3.1  - CLI + 알림 (Typer + Slack/Email)
+
+v4.x  : AI
+  v4.0  - AI 장애 분석, RAG + MCP 서버
 ```
