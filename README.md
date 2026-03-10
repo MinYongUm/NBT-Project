@@ -7,7 +7,6 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 - 언어/프레임워크: Python 3.11, Netmiko
 - 실행 환경: Docker (docker-compose)
 - 백업 저장 위치: Ubuntu 호스트 `~/nbt-backup` (볼륨 마운트)
----
 
 ## 2. 주요 기능
 - 다중 벤더/OS 동시 지원 (Cisco IOS, IOS-XE, NX-OS)
@@ -16,7 +15,6 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 - 성공/실패 이력을 기록하는 파일 로깅 시스템
 - YAML 기반 설정 관리 (코드 수정 없이 장비/명령어 변경 가능)
 - 계정 정보 환경변수 분리 (.env 기반 보안 관리)
----
 
 ## 3. 프로젝트 구조
 ```
@@ -35,15 +33,13 @@ NBT-Project/
 ├── main.py
 └── requirements.txt
 ```
----
-
 ## 4. 설치 및 실행
 
-### 요구사항
+### 4-1. 요구사항
 - Docker, docker-compose
 - EVE-NG 또는 실제 운영 장비(Cisco 기준)
 
-### 초기 설정
+### 4-2. 초기 설정
 ```bash
 # 1. 저장소 클론
 git clone https://github.com/MinYongUm/NBT-Project.git
@@ -59,7 +55,7 @@ cp config/settings.yaml.example config/settings.yaml
 # config/settings.yaml에 실제 장비 IP 입력
 ```
 
-### .env 설정
+### 4-3. env 설정
 
 ```bash
 NBT_USERNAME=your_username
@@ -68,7 +64,7 @@ NBT_BACKUP_ROOT=/data/backup
 TZ=Asia/Seoul
 ```
 
-### config/settings.yaml 설정
+### 4-4. config/settings.yaml 설정
 
 ```yaml
 devices:
@@ -93,7 +89,7 @@ backup:
   session_timeout: 30
 ```
 
-### 실행
+### 4-5. 실행
 
 ```bash
 # 이미지 빌드
@@ -105,16 +101,12 @@ docker compose run --rm nbt-engine python main.py
 
 백업 결과는 Ubuntu 호스트 `~/nbt-backup/YYYYMMDD_HHMM/` 폴더에 저장됩니다.
 
----
-
 ## 5. 보안 주의사항
 
 - `.env` 파일은 절대 Git에 push하지 마세요 (.gitignore에 등록되어 있습니다)
 - `config/settings.yaml`은 장비 IP가 포함되므로 Git에 push하지 마세요
 - 계정 정보는 반드시 `.env` 또는 환경변수로만 관리합니다
 - `config/settings.yaml.example`, `.env.example`은 실제 값 없는 템플릿만 Git에 올립니다
-
----
 
 ## 6. 개발 로드맵
 
