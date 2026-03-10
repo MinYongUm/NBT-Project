@@ -37,29 +37,22 @@ backup:
 # Config Diff 설정
 # =================================================================
 diff:
-  # 비교 시 무시할 노이즈 패턴 목록 (대소문자 구분 없음)
-  # 매 실행마다 변하는 동적 값 라인을 제외하여 오탐을 방지합니다.
-  #
-  # 판단 기준:
-  #   - 실제 설정(config) 변경이 아닌 상태(status) 값인가?
-  #   - 실행 시간에 따라 자동으로 변하는 값인가?
-  #
   noise_patterns:
     # --- 공통 (IOS / NX-OS) ---
-    - "uptime is"              # show version: 가동 시간 (항상 변경)
-    - "Last reload"            # show version: 마지막 리로드 시각
-    - "System image file"      # show version: 이미지 경로
+    - "uptime is"
+    - "Last reload"
+    - "System image file"
 
     # --- IOS / IOS-XE ---
-    - "Current time"           # show ntp status, show clock
-    - "clock is"               # show ntp status
-    - "Last input"             # show interfaces: 마지막 입출력 시각
+    - "Current time"
+    - "clock is"
+    - "Last input"
     - "Last output"
-    - "Last clearing"          # show int count errors
-    - "output drops"           # 카운터 — 매 실행마다 누적 증가
+    - "Last clearing"
+    - "output drops"
     - "input errors"
     - "output errors"
-    - "5 minute input rate"    # show interfaces: 트래픽 통계
+    - "5 minute input rate"
     - "5 minute output rate"
     - "packets input"
     - "packets output"
@@ -67,9 +60,34 @@ diff:
     - "bytes output"
 
     # --- NX-OS ---
-    - "Last Flapped"           # show interface status
-    - "30 seconds input rate"  # show interfaces: 트래픽 통계
+    - "Last Flapped"
+    - "30 seconds input rate"
     - "30 seconds output rate"
     - "Load-Interval"
 
-    # 필요 시 패턴 추가 (재빌드 없이 즉시 반영)
+# =================================================================
+# 알림 설정 (v3.1 추가)
+# 민감 정보는 환경변수 우선 적용:
+#   NBT_SLACK_WEBHOOK   : Slack Webhook URL
+#   NBT_SMTP_USER       : SMTP 계정 이메일
+#   NBT_SMTP_PASSWORD   : SMTP 비밀번호
+# =================================================================
+notify:
+  slack:
+    enabled: false
+    webhook_url: ""       # 또는 환경변수 NBT_SLACK_WEBHOOK 사용
+
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: ""         # 또는 환경변수 NBT_SMTP_USER 사용
+    smtp_password: ""     # 또는 환경변수 NBT_SMTP_PASSWORD 사용
+    from_addr: "nbt-alert@example.com"
+    to_addrs:
+      - "admin@example.com"
+
+  events:
+    on_device_failure: true   # 장비 개별 최종 실패 시 즉시 알림
+    on_diff_detected:  true   # Config 변경 감지 시 즉시 알림
+    on_summary:        true   # 전체 백업 완료 후 요약 알림

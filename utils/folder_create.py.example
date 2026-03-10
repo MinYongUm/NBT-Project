@@ -1,11 +1,10 @@
 """
-백업  폴더 관리 모듈
--실제 사용 시 이 파일을 folder_create.py로 복사 후 사용하세요.
+백업 폴더 관리 모듈
+- 실제 사용 시 이 파일을 folder_create.py로 복사 후 사용하세요.
 
 백업 저장 경로 관리
 - 환경변수 NBT_BACKUP_ROOT로 경로 지정 가능.
 - Docker: docker-compose.yml에서 설정.
-- Windows: 환경변수 또는 아래 DEFAULT_ROOT 수정.
 """
 
 import os
@@ -17,20 +16,16 @@ from pathlib import Path
 # =================================================================
 # 우선순위: 환경변수 > 기본값
 # Docker 환경: docker-compose.yml에서 NBT_BACKUP_ROOT=/data/backup 설정
-# Windows 환경: 환경변수 설정 또는 아래 기본값 수정
 DEFAULT_ROOT = '/data/backup'
 
 
-def get_backup_root():
+def get_backup_root() -> Path:
     """백업 루트 경로를 반환합니다."""
     root = os.environ.get('NBT_BACKUP_ROOT', DEFAULT_ROOT)
     return Path(root)
 
 
-# =================================================================
-# 폴더 생성 함수
-# =================================================================
-def create_backup_folder():
+def create_backup_folder() -> Path:
     """
     타임스탬프 기반 백업 폴더를 생성합니다.
 
@@ -46,7 +41,7 @@ def create_backup_folder():
     return backup_path
 
 
-def create_log_folder():
+def create_log_folder() -> Path:
     """
     로그 폴더를 생성합니다.
 
