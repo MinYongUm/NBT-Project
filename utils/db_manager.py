@@ -1,13 +1,14 @@
 """
 NBT (Network Backup Tools) - Database Manager
-Version: 2.3
+Version: 3.0
 
-백업 이력을 SQLite DB에 저장하는 모듈.
-ThreadPoolExecutor 환경에서 thread-safe하게 동작하도록 threading.Lock 적용.
+SQLite 기반 백업 이력 및 Config Diff 저장 모듈.
+thread-safe 설계: threading.Lock으로 모든 write 연산 직렬화.
 
-테이블 구조:
-    backup_runs    : 실행 단위 기록 (run_id, run_at, total, success, fail)
-    backup_results : 장비 단위 기록 (run_id FK, hostname, ip, ...)
+Update History:
+- ver 2.2: 최초 작성 (backup_runs, backup_results 테이블)
+- ver 2.3: threading.Lock 추가 (ThreadPoolExecutor 병렬 실행 대응)
+- ver 3.0: config_diffs 테이블 추가, get_last_backup_path() / save_diff() 추가
 """
 
 import sqlite3
@@ -16,52 +17,53 @@ import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
 
 
 def _now_kst() -> str:
-    """KST 기준 ISO 8601 타임스탬프를 반환합니다."""
-    return datetime.now(KST).isoformat(timespec='seconds')
+    """현재 시각을 KST ISO 8601 문자열로 반환합니다."""
+    return datetime.now(KST).isoformat()
 
 
 class DBManager:
-    """
-    SQLite 기반 백업 이력 관리 클래스.
-
-    Thread-safe 설계:
-        - check_same_thread=False : 단일 Connection을 다수 스레드가 공유 허용
-        - self._lock (threading.Lock) : 모든 write 연산에 직렬화 적용
-        - read 연산(close 제외)은 현재 없으므로 Lock으로 충분
-    """
+    """SQLite 백업 이력 및 Config Diff 관리 클래스."""
 
     def __init__(self, db_path: Path) -> None:
+        """
+        Args:
+            db_path: SQLite DB 파일 경로.
+                     부모 디렉토리가 존재하지 않으면 자동 생성.
+        """
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
-        self._conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
-        self._run_id: int | None = None
+        self._conn: sqlite3.Connection | None = None
 
     # ------------------------------------------------------------------
     # 초기화
     # ------------------------------------------------------------------
+
     def initialize(self) -> None:
-        """DB 연결 및 테이블 생성."""
+        """DB 연결 및 테이블 생성 (없을 경우)."""
         self._conn = sqlite3.connect(
             str(self._db_path),
-            check_same_thread=False,   # 다수 스레드에서 단일 Connection 공유
+            check_same_thread=False,
         )
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
-        logging.info(f"[DB] 초기화 완료: {self._db_path}")
+        logger.info("DB 초기화 완료: %s", self._db_path)
 
     def _create_tables(self) -> None:
-        """backup_runs / backup_results 테이블 생성 (없을 경우에만)."""
+        """필요한 테이블을 생성합니다 (IF NOT EXISTS)."""
         with self._lock:
             cursor = self._conn.cursor()
+
             cursor.executescript("""
                 CREATE TABLE IF NOT EXISTS backup_runs (
                     run_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_at      TEXT    NOT NULL,
+                    run_at      TEXT NOT NULL,
                     total       INTEGER DEFAULT 0,
                     success     INTEGER DEFAULT 0,
                     fail        INTEGER DEFAULT 0
@@ -69,54 +71,54 @@ class DBManager:
 
                 CREATE TABLE IF NOT EXISTS backup_results (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_id      INTEGER NOT NULL REFERENCES backup_runs(run_id),
+                    run_id      INTEGER NOT NULL,
                     hostname    TEXT,
-                    ip          TEXT    NOT NULL,
+                    ip          TEXT,
                     device_type TEXT,
                     os_type     TEXT,
-                    status      TEXT    NOT NULL,   -- 'SUCCESS' | 'FAIL'
+                    status      TEXT,
                     file_path   TEXT,
                     duration_sec REAL,
                     error_msg   TEXT,
-                    backed_up_at TEXT   NOT NULL
+                    backed_up_at TEXT,
+                    FOREIGN KEY (run_id) REFERENCES backup_runs(run_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS config_diffs (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id          INTEGER NOT NULL,
+                    hostname        TEXT NOT NULL,
+                    ip              TEXT,
+                    previous_file   TEXT,
+                    current_file    TEXT NOT NULL,
+                    diff_lines      INTEGER DEFAULT 0,
+                    diff_content    TEXT,
+                    detected_at     TEXT NOT NULL,
+                    FOREIGN KEY (run_id) REFERENCES backup_runs(run_id)
                 );
             """)
+
             self._conn.commit()
 
     # ------------------------------------------------------------------
-    # 실행 단위 관리
+    # backup_runs
     # ------------------------------------------------------------------
-    def start_run(self) -> int:
-        """
-        새 백업 실행 레코드를 생성하고 run_id를 반환합니다.
 
-        Returns:
-            int: 생성된 run_id
-        """
+    def start_run(self) -> int:
+        """새 백업 실행 레코드를 생성하고 run_id를 반환합니다."""
         with self._lock:
             cursor = self._conn.cursor()
             cursor.execute(
                 "INSERT INTO backup_runs (run_at) VALUES (?)",
-                (_now_kst(),)
+                (_now_kst(),),
             )
             self._conn.commit()
-            self._run_id = cursor.lastrowid
-            logging.info(f"[DB] 백업 실행 시작 — run_id: {self._run_id}")
-            return self._run_id
+            run_id = cursor.lastrowid
+            logger.info("백업 실행 시작 (run_id=%d)", run_id)
+            return run_id
 
-    def finish_run(self, total: int, success: int, fail: int) -> None:
-        """
-        백업 실행 집계 결과를 업데이트합니다.
-
-        Args:
-            total   : 전체 장비 수
-            success : 성공 장비 수
-            fail    : 실패 장비 수
-        """
-        if self._run_id is None:
-            logging.warning("[DB] finish_run 호출 전 start_run이 필요합니다.")
-            return
-
+    def finish_run(self, run_id: int, total: int, success: int, fail: int) -> None:
+        """백업 실행 집계를 업데이트합니다."""
         with self._lock:
             self._conn.execute(
                 """
@@ -124,47 +126,31 @@ class DBManager:
                 SET total = ?, success = ?, fail = ?
                 WHERE run_id = ?
                 """,
-                (total, success, fail, self._run_id)
+                (total, success, fail, run_id),
             )
             self._conn.commit()
-            logging.info(
-                f"[DB] 백업 실행 종료 — run_id: {self._run_id} "
-                f"| 전체: {total}  성공: {success}  실패: {fail}"
-            )
+        logger.info(
+            "백업 실행 종료 (run_id=%d) | 전체: %d  성공: %d  실패: %d",
+            run_id, total, success, fail,
+        )
 
     # ------------------------------------------------------------------
-    # 장비 단위 저장
+    # backup_results
     # ------------------------------------------------------------------
+
     def save_result(
         self,
+        run_id: int,
         hostname: str,
         ip: str,
         device_type: str,
         os_type: str,
         status: str,
-        file_path: str | None = None,
-        duration_sec: float | None = None,
-        error_msg: str | None = None,
+        file_path: str,
+        duration_sec: float,
+        error_msg: str = "",
     ) -> None:
-        """
-        개별 장비 백업 결과를 저장합니다.
-
-        Thread-safe: Lock으로 직렬화되므로 다수 스레드에서 동시 호출 안전.
-
-        Args:
-            hostname    : 장비 hostname (find_prompt 결과)
-            ip          : 장비 IP
-            device_type : Netmiko device_type (cisco_ios 등)
-            os_type     : 장비 그룹명 (MGMT / NEXUS / ACI)
-            status      : 'SUCCESS' 또는 'FAIL'
-            file_path   : 저장된 백업 파일 경로
-            duration_sec: 백업 소요 시간 (초)
-            error_msg   : 오류 메시지 (실패 시)
-        """
-        if self._run_id is None:
-            logging.warning("[DB] save_result 호출 전 start_run이 필요합니다.")
-            return
-
+        """장비 단위 백업 결과를 저장합니다."""
         with self._lock:
             self._conn.execute(
                 """
@@ -174,26 +160,79 @@ class DBManager:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    self._run_id,
-                    hostname,
-                    ip,
-                    device_type,
-                    os_type,
-                    status,
-                    file_path,
-                    duration_sec,
-                    error_msg,
-                    _now_kst(),
-                )
+                    run_id, hostname, ip, device_type, os_type,
+                    status, file_path, duration_sec, error_msg, _now_kst(),
+                ),
             )
             self._conn.commit()
 
     # ------------------------------------------------------------------
+    # config_diffs
+    # ------------------------------------------------------------------
+
+    def get_last_backup_path(self, hostname: str, current_run_id: int) -> str | None:
+        """
+        현재 run을 제외한 가장 최근 성공 백업의 파일 경로를 반환합니다.
+
+        Args:
+            hostname: 조회할 장비 hostname.
+            current_run_id: 현재 실행 run_id (비교 대상에서 제외).
+
+        Returns:
+            이전 백업 파일 경로 문자열. 없으면 None.
+        """
+        cursor = self._conn.cursor()
+        cursor.execute(
+            """
+            SELECT file_path
+            FROM backup_results
+            WHERE hostname = ?
+              AND status = 'SUCCESS'
+              AND run_id != ?
+            ORDER BY run_id DESC
+            LIMIT 1
+            """,
+            (hostname, current_run_id),
+        )
+        row = cursor.fetchone()
+        return row["file_path"] if row else None
+
+    def save_diff(
+        self,
+        run_id: int,
+        hostname: str,
+        ip: str,
+        previous_file: str,
+        current_file: str,
+        diff_lines: int,
+        diff_content: str,
+    ) -> None:
+        """Config Diff 결과를 저장합니다."""
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO config_diffs
+                    (run_id, hostname, ip, previous_file, current_file,
+                     diff_lines, diff_content, detected_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id, hostname, ip, previous_file, current_file,
+                    diff_lines, diff_content, _now_kst(),
+                ),
+            )
+            self._conn.commit()
+        logger.info(
+            "[%s] Config Diff 저장 완료 (변경 라인: %d)", hostname, diff_lines
+        )
+
+    # ------------------------------------------------------------------
     # 종료
     # ------------------------------------------------------------------
+
     def close(self) -> None:
         """DB 연결을 닫습니다."""
         if self._conn:
             self._conn.close()
             self._conn = None
-            logging.info("[DB] 연결 종료.")
+            logger.info("DB 연결 종료")

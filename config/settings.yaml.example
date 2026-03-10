@@ -1,33 +1,75 @@
-# NBT-Project 통합 설정 파일 템플릿
-# 실제 사용 시 이 파일을 config/settings.yaml로 복사 후 값을 채우세요.
-#
-# 주의사항:
-#   - username, password는 이 파일에 작성하지 마세요.
-#   - 계정 정보는 반드시 .env 파일 또는 환경변수로 관리합니다.
+# NBT-Project 설정 파일 템플릿
+# 실제 사용 시 이 파일을 config/settings.yaml 로 복사 후 수정하세요.
+# 계정 정보(username, password)는 이 파일에 작성하지 마세요. → .env 파일에서 관리
 
+# =================================================================
 # 장비 목록
-# device_type 허용값: cisco_ios / cisco_nxos
+# =================================================================
 devices:
   mgmt:
     device_type: cisco_ios
     hosts:
-      - 10.x.x.1
-      - 10.x.x.2
+      - 192.168.0.210
+      - 192.168.0.211
 
   nexus:
     device_type: cisco_nxos
     hosts:
-      - 10.x.x.10
-      - 10.x.x.11
+      - 192.168.0.212
+      - 192.168.0.213
 
   aci:
     device_type: cisco_nxos
     hosts:
-      - 10.x.x.20
-      - 10.x.x.21
+      - 192.168.0.214
+      - 192.168.0.215
 
+# =================================================================
 # 백업 동작 설정
+# =================================================================
 backup:
-  max_retries: 5
-  retry_delay: 10
-  session_timeout: 30
+  max_retries: 5          # 장비 접속 최대 재시도 횟수
+  retry_delay: 10         # 재시도 대기 시간 (초)
+  session_timeout: 30     # Netmiko SSH 세션 타임아웃 (초)
+  max_workers: 6          # ThreadPoolExecutor 동시 실행 스레드 수 (v2.3)
+
+# =================================================================
+# Config Diff 설정
+# =================================================================
+diff:
+  # 비교 시 무시할 노이즈 패턴 목록 (대소문자 구분 없음)
+  # 매 실행마다 변하는 동적 값 라인을 제외하여 오탐을 방지합니다.
+  #
+  # 판단 기준:
+  #   - 실제 설정(config) 변경이 아닌 상태(status) 값인가?
+  #   - 실행 시간에 따라 자동으로 변하는 값인가?
+  #
+  noise_patterns:
+    # --- 공통 (IOS / NX-OS) ---
+    - "uptime is"              # show version: 가동 시간 (항상 변경)
+    - "Last reload"            # show version: 마지막 리로드 시각
+    - "System image file"      # show version: 이미지 경로
+
+    # --- IOS / IOS-XE ---
+    - "Current time"           # show ntp status, show clock
+    - "clock is"               # show ntp status
+    - "Last input"             # show interfaces: 마지막 입출력 시각
+    - "Last output"
+    - "Last clearing"          # show int count errors
+    - "output drops"           # 카운터 — 매 실행마다 누적 증가
+    - "input errors"
+    - "output errors"
+    - "5 minute input rate"    # show interfaces: 트래픽 통계
+    - "5 minute output rate"
+    - "packets input"
+    - "packets output"
+    - "bytes input"
+    - "bytes output"
+
+    # --- NX-OS ---
+    - "Last Flapped"           # show interface status
+    - "30 seconds input rate"  # show interfaces: 트래픽 통계
+    - "30 seconds output rate"
+    - "Load-Interval"
+
+    # 필요 시 패턴 추가 (재빌드 없이 즉시 반영)

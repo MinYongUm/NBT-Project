@@ -1,198 +1,232 @@
 """
-NBT (Network Backup Tools) - Configuration Loader
-설정 파일(YAML) 및 환경변수를 로드하고 검증합니다.
+NBT (Network Backup Tools) - Config Loader
+Version: 3.0
 
-우선순위:
-    계정 정보: 환경변수 > .env 파일  (settings.yaml에서는 읽지 않음)
-    장비/백업 설정: settings.yaml
-    명령어: commands.yaml
+YAML 설정 파일 로드, 스키마 검증, 환경변수 기반 계정 수신 모듈.
+
+Update History:
+- ver 2.1: 최초 작성 (YAML 파서 + 스키마 검증 + 환경변수 수신)
+- ver 2.3: max_workers 항목 추가
+- ver 3.0: diff 섹션 파싱 추가 (noise_patterns)
 """
 
-import os
 import logging
+import os
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# =================================================================
-# 경로 상수
-# =================================================================
-PROJECT_ROOT = Path(__file__).parent.parent
-CONFIG_DIR = PROJECT_ROOT / "config"
+# 기본 설정 파일 경로
+_SETTINGS_PATH = Path(__file__).parent.parent / "config" / "settings.yaml"
+_COMMANDS_PATH = Path(__file__).parent.parent / "config" / "commands.yaml"
 
-SETTINGS_PATH = CONFIG_DIR / "settings.yaml"
-COMMANDS_PATH = CONFIG_DIR / "commands.yaml"
-ENV_PATH = PROJECT_ROOT / ".env"
-
-
-# =================================================================
-# 내부 헬퍼
-# =================================================================
-def _load_yaml(path: Path) -> dict[str, Any]:
-    """YAML 파일을 로드합니다."""
-    if not path.exists():
-        raise FileNotFoundError(
-            f"설정 파일을 찾을 수 없습니다: {path}\n"
-            f"  -> {path.name}.example 파일을 복사하여 생성하세요."
-        )
-    with path.open(encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+# diff 섹션 기본값 (settings.yaml에 diff 섹션이 없을 경우 적용)
+_DEFAULT_NOISE_PATTERNS: list[str] = [
+    "uptime is",
+    "Last reload",
+    "Current time",
+    "clock is",
+    "Last input",
+    "Last output",
+    "Last clearing",
+    "5 minute input rate",
+    "5 minute output rate",
+    "30 seconds input rate",
+    "30 seconds output rate",
+    "Last Flapped",
+]
 
 
-def _validate_settings(settings: dict[str, Any]) -> None:
-    """settings.yaml 필수 키를 검증합니다."""
-    required_sections = ["devices", "backup"]
-    for section in required_sections:
-        if section not in settings:
-            raise ValueError(f"settings.yaml에 필수 섹션이 없습니다: [{section}]")
-
-    required_device_groups = ["mgmt", "nexus", "aci"]
-    for group in required_device_groups:
-        if group not in settings["devices"]:
-            raise ValueError(f"settings.yaml devices 섹션에 [{group}] 그룹이 없습니다.")
-        group_cfg = settings["devices"][group]
-        if "device_type" not in group_cfg:
-            raise ValueError(f"devices.{group}에 'device_type' 키가 없습니다.")
-        if "hosts" not in group_cfg or not group_cfg["hosts"]:
-            raise ValueError(f"devices.{group}에 'hosts' 목록이 없습니다.")
-
-    required_backup_keys = ["max_retries", "retry_delay", "session_timeout"]
-    for key in required_backup_keys:
-        if key not in settings["backup"]:
-            raise ValueError(f"settings.yaml backup 섹션에 [{key}] 키가 없습니다.")
-
-
-def _validate_commands(commands: dict[str, Any]) -> None:
-    """commands.yaml 필수 키를 검증합니다."""
-    required_groups = ["mgmt", "nexus", "aci"]
-    for group in required_groups:
-        if group not in commands:
-            raise ValueError(f"commands.yaml에 [{group}] 그룹이 없습니다.")
-        if not isinstance(commands[group], list) or not commands[group]:
-            raise ValueError(f"commands.yaml [{group}]의 명령어 목록이 비어 있습니다.")
-
-
-def _load_credentials() -> tuple[str, str]:
-    """
-    계정 정보를 환경변수 우선으로 로드합니다.
-
-    우선순위:
-        1. 시스템 환경변수 (Docker 컨테이너, CI/CD 등에서 주입)
-        2. .env 파일 (로컬 개발 환경)
-
-    Returns:
-        (username, password) 튜플
-
-    Raises:
-        EnvironmentError: NBT_USERNAME 또는 NBT_PASSWORD가 설정되지 않은 경우
-    """
-    # .env 파일 로드 (이미 환경변수에 값이 있으면 덮어쓰지 않음)
-    if ENV_PATH.exists():
-        load_dotenv(ENV_PATH, override=False)
-        logger.debug(f".env 파일 로드: {ENV_PATH}")
-    else:
-        logger.debug(".env 파일 없음. 시스템 환경변수만 사용합니다.")
-
-    username = os.environ.get("NBT_USERNAME", "").strip()
-    password = os.environ.get("NBT_PASSWORD", "").strip()
-
-    missing = []
-    if not username:
-        missing.append("NBT_USERNAME")
-    if not password:
-        missing.append("NBT_PASSWORD")
-
-    if missing:
-        raise EnvironmentError(
-            f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing)}\n"
-            f"  -> .env 파일 또는 시스템 환경변수에 값을 설정하세요.\n"
-            f"  -> 템플릿: {PROJECT_ROOT / '.env.example'}"
-        )
-
-    return username, password
-
-
-# =================================================================
-# 공개 인터페이스
-# =================================================================
+@dataclass
 class AppConfig:
+    """애플리케이션 전체 설정을 담는 데이터 클래스."""
+    username: str
+    password: str
+    devices: dict                        # {'mgmt': {'device_type': ..., 'hosts': [...]}, ...}
+    backup: dict                         # {'max_retries': ..., 'retry_delay': ..., ...}
+    commands: dict                       # {'mgmt': [...], 'nexus': [...], 'aci': [...]}
+    diff: dict = field(default_factory=dict)  # {'noise_patterns': [...]}
+
+
+def load_config(
+    settings_path: Path = _SETTINGS_PATH,
+    commands_path: Path = _COMMANDS_PATH,
+) -> AppConfig:
     """
-    NBT 전체 설정을 보관하는 컨테이너입니다.
+    설정 파일을 로드하고 검증하여 AppConfig를 반환합니다.
 
-    Attributes:
-        username: 장비 접속 계정
-        password: 장비 접속 비밀번호
-        devices: 장비 그룹별 설정 (device_type, hosts)
-        backup: 백업 동작 설정 (max_retries, retry_delay, session_timeout)
-        commands: 장비 그룹별 명령어 목록
-    """
+    로드 순서:
+        1. .env 파일 (있을 경우) → 환경변수로 등록
+        2. 환경변수에서 계정 정보 수신 (NBT_USERNAME, NBT_PASSWORD)
+        3. settings.yaml 로드 및 검증
+        4. commands.yaml 로드 및 검증
 
-    def __init__(
-        self,
-        username: str,
-        password: str,
-        devices: dict[str, Any],
-        backup: dict[str, Any],
-        commands: dict[str, Any],
-    ) -> None:
-        self.username = username
-        self.password = password
-        self.devices = devices
-        self.backup = backup
-        self.commands = commands
-
-    def __repr__(self) -> str:
-        host_counts = {
-            group: len(cfg.get("hosts", []))
-            for group, cfg in self.devices.items()
-        }
-        return (
-            f"AppConfig("
-            f"username={self.username!r}, "
-            f"devices={host_counts}, "
-            f"max_retries={self.backup.get('max_retries')})"
-        )
-
-
-def load_config() -> AppConfig:
-    """
-    전체 설정을 로드하고 검증한 뒤 AppConfig 객체로 반환합니다.
+    Args:
+        settings_path: settings.yaml 파일 경로.
+        commands_path: commands.yaml 파일 경로.
 
     Returns:
-        AppConfig 객체
+        AppConfig 인스턴스.
 
     Raises:
-        FileNotFoundError: 설정 파일이 없는 경우
-        ValueError: 필수 키가 누락된 경우
-        EnvironmentError: 계정 환경변수가 없는 경우
+        FileNotFoundError: 설정 파일이 존재하지 않을 경우.
+        ValueError: 필수 키가 누락되었을 경우.
+        EnvironmentError: 계정 환경변수가 설정되지 않은 경우.
     """
-    logger.info("설정 로드 시작")
+    load_dotenv()
 
-    # 계정 정보 (환경변수 우선)
     username, password = _load_credentials()
-    logger.info("계정 정보 로드 완료")
+    settings = _load_yaml(settings_path)
+    commands = _load_yaml(commands_path)
 
-    # settings.yaml
-    settings = _load_yaml(SETTINGS_PATH)
     _validate_settings(settings)
-    logger.info(f"settings.yaml 로드 완료: {SETTINGS_PATH}")
-
-    # commands.yaml
-    commands = _load_yaml(COMMANDS_PATH)
     _validate_commands(commands)
-    logger.info(f"commands.yaml 로드 완료: {COMMANDS_PATH}")
 
-    config = AppConfig(
+    diff_config = _parse_diff_config(settings)
+
+    logger.info("설정 파일 로드 완료: %s", settings_path)
+
+    return AppConfig(
         username=username,
         password=password,
         devices=settings["devices"],
         backup=settings["backup"],
         commands=commands,
+        diff=diff_config,
     )
 
-    logger.info(f"설정 로드 완료: {config}")
-    return config
+
+# ------------------------------------------------------------------
+# 내부 함수
+# ------------------------------------------------------------------
+
+def _load_credentials() -> tuple[str, str]:
+    """
+    환경변수에서 계정 정보를 로드합니다.
+
+    Returns:
+        (username, password) 튜플.
+
+    Raises:
+        EnvironmentError: 환경변수가 설정되지 않은 경우.
+    """
+    username = os.environ.get("NBT_USERNAME", "").strip()
+    password = os.environ.get("NBT_PASSWORD", "").strip()
+
+    if not username:
+        raise EnvironmentError(
+            "환경변수 NBT_USERNAME이 설정되지 않았습니다. "
+            ".env 파일 또는 docker-compose.yml 환경변수를 확인하세요."
+        )
+    if not password:
+        raise EnvironmentError(
+            "환경변수 NBT_PASSWORD가 설정되지 않았습니다. "
+            ".env 파일 또는 docker-compose.yml 환경변수를 확인하세요."
+        )
+
+    return username, password
+
+
+def _load_yaml(path: Path) -> dict:
+    """
+    YAML 파일을 로드합니다.
+
+    Args:
+        path: YAML 파일 경로.
+
+    Returns:
+        파싱된 딕셔너리.
+
+    Raises:
+        FileNotFoundError: 파일이 존재하지 않을 경우.
+    """
+    if not path.exists():
+        raise FileNotFoundError(
+            f"설정 파일을 찾을 수 없습니다: {path}\n"
+            f".example 파일을 복사하여 생성하세요."
+        )
+
+    with path.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    return data or {}
+
+
+def _validate_settings(settings: dict) -> None:
+    """
+    settings.yaml 필수 키를 검증합니다.
+
+    Raises:
+        ValueError: 필수 키 누락 또는 형식 오류.
+    """
+    # 최상위 필수 키
+    required_top_keys = ["devices", "backup"]
+    for key in required_top_keys:
+        if key not in settings:
+            raise ValueError(f"settings.yaml에 필수 키 '{key}'가 없습니다.")
+
+    # devices 하위 검증
+    devices = settings["devices"]
+    if not isinstance(devices, dict) or not devices:
+        raise ValueError("settings.yaml의 'devices' 섹션이 비어 있거나 형식이 잘못되었습니다.")
+
+    for group_name, group_info in devices.items():
+        if "device_type" not in group_info:
+            raise ValueError(
+                f"devices.{group_name}에 'device_type' 키가 없습니다."
+            )
+        if "hosts" not in group_info or not group_info["hosts"]:
+            raise ValueError(
+                f"devices.{group_name}에 'hosts' 키가 없거나 비어 있습니다."
+            )
+
+    # backup 하위 검증
+    backup = settings["backup"]
+    required_backup_keys = ["max_retries", "retry_delay", "session_timeout", "max_workers"]
+    for key in required_backup_keys:
+        if key not in backup:
+            raise ValueError(f"settings.yaml backup 섹션에 '{key}' 키가 없습니다.")
+
+
+def _validate_commands(commands: dict) -> None:
+    """
+    commands.yaml 필수 키를 검증합니다.
+
+    Raises:
+        ValueError: 필수 키 누락 또는 형식 오류.
+    """
+    if not isinstance(commands, dict) or not commands:
+        raise ValueError("commands.yaml이 비어 있거나 형식이 잘못되었습니다.")
+
+    for group_name, command_list in commands.items():
+        if not isinstance(command_list, list) or not command_list:
+            raise ValueError(
+                f"commands.yaml의 '{group_name}' 섹션이 비어 있거나 리스트 형식이 아닙니다."
+            )
+
+
+def _parse_diff_config(settings: dict) -> dict:
+    """
+    settings.yaml의 diff 섹션을 파싱합니다.
+    섹션이 없으면 기본값을 반환합니다.
+
+    Returns:
+        {'noise_patterns': [...]} 딕셔너리.
+    """
+    diff_section = settings.get("diff", {})
+
+    noise_patterns = diff_section.get("noise_patterns", _DEFAULT_NOISE_PATTERNS)
+
+    if not isinstance(noise_patterns, list):
+        logger.warning(
+            "diff.noise_patterns 형식이 잘못되었습니다 — 기본값을 사용합니다."
+        )
+        noise_patterns = _DEFAULT_NOISE_PATTERNS
+
+    logger.info("Diff 노이즈 필터 패턴 수: %d", len(noise_patterns))
+
+    return {"noise_patterns": noise_patterns}
