@@ -432,6 +432,8 @@ def run_backup(
                     )
                     if log_queue:
                         log_queue.put(msg)
+                    else:
+                        print(f"  {msg}")  # CLI 모드
                 except Exception as e:
                     task = future_map[future]
                     logger.error(f"[{task.host}] Future 예외: {e}", exc_info=True)
@@ -461,6 +463,8 @@ def run_backup(
         )
         if log_queue:
             log_queue.put(f"[DONE] {summary}")
+        else:
+            print(f"\n  {summary}")  # CLI 모드
         logger.info(summary)
 
         # 전체 완료 요약 알림
