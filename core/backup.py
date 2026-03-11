@@ -17,6 +17,7 @@ Update History:
 
 import difflib
 import logging
+import queue
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -367,6 +368,7 @@ def _backup_device(
 def run_backup(
     group_filter: Optional[str] = None,
     dry_run: bool = False,
+    log_queue: Optional[queue.Queue] = None,
 ) -> None:
     """전체 백업 작업을 실행합니다.
 
@@ -383,7 +385,9 @@ def run_backup(
         return
 
     if not tasks:
-        print(f"  실행할 장비가 없습니다. group_filter='{group_filter}'")
+        msg = f"실행할 장비가 없습니다. group_filter='{group_filter}'"
+        if log_queue:
+            log_queue.put(msg)
         logger.warning(f"실행할 장비 없음: group_filter={group_filter}")
         return
 
@@ -422,10 +426,12 @@ def run_backup(
                     result = future.result()
                     results.append(result)
                     status_icon = "OK  " if result.status == "SUCCESS" else "FAIL"
-                    print(
-                        f"  [{status_icon}] {result.hostname:<20} "
-                        f"{result.task.host:<16} {result.duration_sec:.1f}s"
+                    msg = (
+                        f"[{status_icon}] {result.hostname} "
+                        f"{result.task.host} {result.duration_sec:.1f}s"
                     )
+                    if log_queue:
+                        log_queue.put(msg)
                 except Exception as e:
                     task = future_map[future]
                     logger.error(f"[{task.host}] Future 예외: {e}", exc_info=True)
@@ -450,11 +456,12 @@ def run_backup(
         db.finish_run(run_id, total, success, fail)
 
         summary = (
-            f"\n  백업 완료 | 전체: {total}  성공: {success}  실패: {fail}"
+            f"백업 완료 | 전체: {total}  성공: {success}  실패: {fail}"
             f"  /  Config 변경: {diff_count}건"
         )
-        print(summary)
-        logger.info(summary.strip())
+        if log_queue:
+            log_queue.put(f"[DONE] {summary}")
+        logger.info(summary)
 
         # 전체 완료 요약 알림
         notifier.send_summary(total, success, fail, diff_count)
