@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}백업 이력{% endblock %}
+
+{% block head %}
+<style>
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1f1f1f;
+    font-family: var(--mono);
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1f1f1f; }
+
+  .detail-row td {
+    background: #111;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+
+  .detail-table th {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #2a2a2a;
+    text-transform: uppercase;
+  }
+
+  .detail-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 12px;
+  }
+
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .toggle-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .limit-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">백업 이력</div>
+
+<div class="controls">
+  <select class="limit-select" id="limit-select" onchange="loadHistory()">
+    <option value="5">최근 5회</option>
+    <option value="10">최근 10회</option>
+    <option value="20">최근 20회</option>
+    <option value="50">최근 50회</option>
+  </select>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>RUN #</th>
+        <th>실행 시각</th>
+        <th>완료 시각</th>
+        <th>전체</th>
+        <th>성공</th>
+        <th>실패</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="history-tbody">
+      <tr><td colspan="7" class="empty">데이터 로딩 중...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  async function loadHistory() {
+    const limit = document.getElementById('limit-select').value;
+    const tbody = document.getElementById('history-tbody');
+
+    try {
+      const res  = await fetch(`/api/history?limit=${limit}`);
+      const runs = await res.json();
+
+      if (!runs.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">백업 이력이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = runs.map(r => {
+        const runAt = r.run_at.slice(0, 19).replace('T', ' ');
+        const finAt = r.finished_at ? r.finished_at.slice(0, 19).replace('T', ' ') : '—';
+        const failBadge = r.fail > 0
+          ? `<span class="badge badge-danger">${r.fail}</span>`
+          : `<span class="badge badge-success">0</span>`;
+        return `
+          <tr>
+            <td>#${r.run_id}</td>
+            <td>${runAt}</td>
+            <td>${finAt}</td>
+            <td>${r.total}</td>
+            <td><span class="badge badge-success">${r.success}</span></td>
+            <td>${failBadge}</td>
+            <td>
+              <button class="toggle-btn" onclick="toggleDetail(${r.run_id}, this)">
+                상세 보기
+              </button>
+            </td>
+          </tr>
+          <tr class="detail-row" id="detail-${r.run_id}" style="display:none;">
+            <td colspan="7">
+              <div id="detail-content-${r.run_id}">로딩 중...</div>
+            </td>
+          </tr>`;
+      }).join('');
+
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">데이터를 불러올 수 없습니다.</td></tr>';
+    }
+  }
+
+  async function toggleDetail(runId, btn) {
+    const row = document.getElementById(`detail-${runId}`);
+    const isHidden = row.style.display === 'none';
+
+    if (isHidden) {
+      row.style.display = 'table-row';
+      btn.textContent = '접기';
+
+      const content = document.getElementById(`detail-content-${runId}`);
+      if (content.textContent === '로딩 중...') {
+        try {
+          const res     = await fetch(`/api/history/${runId}`);
+          const results = await res.json();
+          content.innerHTML = `
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>호스트명</th>
+                  <th>IP</th>
+                  <th>device_type</th>
+                  <th>상태</th>
+                  <th>소요 시간</th>
+                  <th>오류</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${results.map(r => `
+                  <tr>
+                    <td>${r.hostname || '—'}</td>
+                    <td>${r.ip}</td>
+                    <td>${r.device_type || '—'}</td>
+                    <td>
+                      <span class="badge ${r.status === 'SUCCESS' ? 'badge-success' : 'badge-danger'}">
+                        ${r.status}
+                      </span>
+                    </td>
+                    <td>${r.duration_sec ? r.duration_sec.toFixed(1) + 's' : '—'}</td>
+                    <td>${r.error_msg || '—'}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>`;
+        } catch (e) {
+          content.textContent = '데이터를 불러올 수 없습니다.';
+        }
+      }
+    } else {
+      row.style.display = 'none';
+      btn.textContent = '상세 보기';
+    }
+  }
+
+  loadHistory();
+</script>
+{% endblock %}

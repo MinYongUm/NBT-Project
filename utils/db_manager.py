@@ -241,11 +241,11 @@ class DBManager:
 
         Returns:
             list[sqlite3.Row]: hostname, ip, diff_lines, previous_file,
-                               current_file, detected_at
+                               current_file, detected_at, diff_content
         """
         rows = self._conn.execute(
             """SELECT hostname, ip, diff_lines, previous_file,
-                      current_file, detected_at
+                      current_file, detected_at, diff_content
                FROM config_diffs
                ORDER BY detected_at DESC
                LIMIT ?""",

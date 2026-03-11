@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}백업 실행{% endblock %}
+
+{% block head %}
+<style>
+  .backup-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 9px 14px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+
+  .log-box {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+    min-height: 300px;
+    max-height: 520px;
+    overflow-y: auto;
+    color: var(--text-muted);
+  }
+
+  .log-line { margin: 0; }
+  .log-ok   { color: var(--success); }
+  .log-fail { color: var(--danger); }
+  .log-done { color: var(--accent); font-weight: 600; }
+  .log-info { color: var(--text-muted); }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .dot.running {
+    background: var(--accent);
+    animation: pulse 1s infinite;
+  }
+
+  .dot.done    { background: var(--success); }
+  .dot.idle    { background: var(--border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">백업 실행</div>
+
+<div class="backup-controls">
+  <select id="group-select">
+    <option value="">전체 그룹</option>
+    <option value="mgmt">mgmt</option>
+    <option value="nexus">nexus</option>
+    <option value="aci">aci</option>
+  </select>
+  <button class="btn btn-primary" id="run-btn" onclick="startBackup()">
+    백업 시작
+  </button>
+</div>
+
+<div class="status-bar">
+  <div class="dot idle" id="status-dot"></div>
+  <span id="status-text">대기 중</span>
+</div>
+
+<div class="log-box" id="log-box">
+  <p class="log-line log-info">백업 시작 버튼을 눌러주세요.</p>
+</div>
+
+<script>
+  function startBackup() {
+    const group = document.getElementById('group-select').value;
+    const btn   = document.getElementById('run-btn');
+    const dot   = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const logBox = document.getElementById('log-box');
+
+    btn.disabled = true;
+    dot.className = 'dot running';
+    statusText.textContent = '백업 실행 중...';
+    logBox.innerHTML = '';
+
+    // 백업 시작
+    const url = group ? `/api/backup?group=${group}` : '/api/backup';
+    fetch(url, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'already_running') {
+          appendLog('이미 백업이 실행 중입니다.', 'log-fail');
+          btn.disabled = false;
+          dot.className = 'dot idle';
+          statusText.textContent = '대기 중';
+          return;
+        }
+        // SSE 스트림 연결
+        streamLogs(btn, dot, statusText);
+      })
+      .catch(() => {
+        appendLog('백업 시작 요청 실패', 'log-fail');
+        btn.disabled = false;
+        dot.className = 'dot idle';
+        statusText.textContent = '오류 발생';
+      });
+  }
+
+  function streamLogs(btn, dot, statusText) {
+    const es = new EventSource('/api/backup/stream');
+
+    es.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.startsWith('[OK]')) {
+        appendLog(msg, 'log-ok');
+      } else if (msg.startsWith('[FAIL]')) {
+        appendLog(msg, 'log-fail');
+      } else if (msg.startsWith('[DONE]')) {
+        appendLog(msg, 'log-done');
+        es.close();
+        btn.disabled = false;
+        dot.className = 'dot done';
+        statusText.textContent = '완료';
+      } else {
+        appendLog(msg, 'log-info');
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      btn.disabled = false;
+      dot.className = 'dot idle';
+      statusText.textContent = '연결 오류';
+    };
+  }
+
+  function appendLog(msg, cls) {
+    const logBox = document.getElementById('log-box');
+    const p = document.createElement('p');
+    p.className = `log-line ${cls}`;
+    p.textContent = msg;
+    logBox.appendChild(p);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+</script>
+{% endblock %}

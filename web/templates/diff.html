@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Config Diff{% endblock %}
+
+{% block head %}
+<style>
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1f1f1f;
+    font-family: var(--mono);
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1f1f1f; }
+
+  .detail-row td {
+    background: #111;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .diff-content {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 16px 0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .diff-add    { color: var(--success); }
+  .diff-remove { color: var(--danger); }
+  .diff-meta   { color: var(--accent); }
+  .diff-neutral{ color: var(--text-muted); }
+
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .toggle-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .limit-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Config Diff</div>
+
+<div class="controls">
+  <select class="limit-select" id="limit-select" onchange="loadDiffs()">
+    <option value="10">최근 10건</option>
+    <option value="20">최근 20건</option>
+    <option value="50">최근 50건</option>
+  </select>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>감지 시각</th>
+        <th>호스트명</th>
+        <th>IP</th>
+        <th>변경 라인</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="diff-tbody">
+      <tr><td colspan="5" class="empty">데이터 로딩 중...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  async function loadDiffs() {
+    const limit = document.getElementById('limit-select').value;
+    const tbody = document.getElementById('diff-tbody');
+
+    try {
+      const res   = await fetch(`/api/diff?limit=${limit}`);
+      const diffs = await res.json();
+
+      if (!diffs.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Config 변경 이력이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = diffs.map((d, i) => {
+        const detectedAt = d.detected_at.slice(0, 19).replace('T', ' ');
+        return `
+          <tr>
+            <td>${detectedAt}</td>
+            <td>${d.hostname}</td>
+            <td>${d.ip}</td>
+            <td><span class="badge badge-blue">${d.diff_lines}줄</span></td>
+            <td>
+              <button class="toggle-btn" onclick="toggleDiff(${i}, this)">
+                Diff 보기
+              </button>
+            </td>
+          </tr>
+          <tr class="detail-row" id="diff-detail-${i}" style="display:none;">
+            <td colspan="5">
+              <div class="diff-content" id="diff-content-${i}">
+                ${renderDiff(d.diff_content || '')}
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">데이터를 불러올 수 없습니다.</td></tr>';
+    }
+  }
+
+  function renderDiff(content) {
+    if (!content) return '<span class="diff-neutral">내용 없음</span>';
+    return content.split('\n').map(line => {
+      const escaped = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      if (line.startsWith('+++') || line.startsWith('---')) {
+        return `<span class="diff-meta">${escaped}</span>`;
+      } else if (line.startsWith('+')) {
+        return `<span class="diff-add">${escaped}</span>`;
+      } else if (line.startsWith('-')) {
+        return `<span class="diff-remove">${escaped}</span>`;
+      } else if (line.startsWith('@@')) {
+        return `<span class="diff-meta">${escaped}</span>`;
+      } else {
+        return `<span class="diff-neutral">${escaped}</span>`;
+      }
+    }).join('\n');
+  }
+
+  function toggleDiff(idx, btn) {
+    const row = document.getElementById(`diff-detail-${idx}`);
+    const isHidden = row.style.display === 'none';
+    row.style.display = isHidden ? 'table-row' : 'none';
+    btn.textContent = isHidden ? '접기' : 'Diff 보기';
+  }
+
+  loadDiffs();
+</script>
+{% endblock %}

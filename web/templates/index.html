@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}대시보드{% endblock %}
+
+{% block head %}
+<style>
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    border-top: 3px solid var(--accent);
+    transition: transform 0.15s;
+  }
+
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-card.success { border-top-color: var(--success); }
+  .stat-card.danger  { border-top-color: var(--danger); }
+  .stat-card.neutral { border-top-color: #888; }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .recent-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1f1f1f;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1f1f1f; }
+
+  .empty {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">대시보드</div>
+
+<!-- Stat 카드 -->
+<div class="stat-grid">
+  <div class="stat-card" id="card-total">
+    <div class="stat-label">전체 장비</div>
+    <div class="stat-value" id="val-total">—</div>
+    <div class="stat-sub">최근 실행 기준</div>
+  </div>
+  <div class="stat-card success" id="card-success">
+    <div class="stat-label">성공</div>
+    <div class="stat-value" id="val-success">—</div>
+    <div class="stat-sub" id="sub-success">&nbsp;</div>
+  </div>
+  <div class="stat-card danger" id="card-fail">
+    <div class="stat-label">실패</div>
+    <div class="stat-value" id="val-fail">—</div>
+    <div class="stat-sub" id="sub-fail">&nbsp;</div>
+  </div>
+  <div class="stat-card neutral" id="card-time">
+    <div class="stat-label">마지막 실행</div>
+    <div class="stat-value" style="font-size:20px;" id="val-time">—</div>
+    <div class="stat-sub" id="sub-time">&nbsp;</div>
+  </div>
+</div>
+
+<!-- 최근 이력 테이블 -->
+<div class="card">
+  <div class="recent-header">최근 백업 이력</div>
+  <table>
+    <thead>
+      <tr>
+        <th>RUN #</th>
+        <th>실행 시각</th>
+        <th>완료 시각</th>
+        <th>전체</th>
+        <th>성공</th>
+        <th>실패</th>
+      </tr>
+    </thead>
+    <tbody id="history-tbody">
+      <tr><td colspan="6" class="empty">데이터 로딩 중...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  async function loadDashboard() {
+    try {
+      const res = await fetch('/api/history?limit=5');
+      const runs = await res.json();
+
+      if (!runs.length) {
+        document.getElementById('history-tbody').innerHTML =
+          '<tr><td colspan="6" class="empty">백업 이력이 없습니다.</td></tr>';
+        return;
+      }
+
+      // Stat 카드 — 가장 최근 run 기준
+      const latest = runs[0];
+      document.getElementById('val-total').textContent   = latest.total;
+      document.getElementById('val-success').textContent = latest.success;
+      document.getElementById('val-fail').textContent    = latest.fail;
+
+      const runAt = latest.run_at.slice(0, 16).replace('T', ' ');
+      document.getElementById('val-time').textContent = runAt;
+      document.getElementById('sub-time').textContent = `RUN #${latest.run_id}`;
+
+      const successRate = latest.total
+        ? Math.round(latest.success / latest.total * 100) : 0;
+      document.getElementById('sub-success').textContent = `성공률 ${successRate}%`;
+      document.getElementById('sub-fail').textContent =
+        latest.fail > 0 ? '확인 필요' : '이상 없음';
+
+      // 이력 테이블
+      const tbody = document.getElementById('history-tbody');
+      tbody.innerHTML = runs.map(r => {
+        const runAt    = r.run_at.slice(0, 19).replace('T', ' ');
+        const finAt    = r.finished_at ? r.finished_at.slice(0, 19).replace('T', ' ') : '—';
+        const failBadge = r.fail > 0
+          ? `<span class="badge badge-danger">${r.fail}</span>`
+          : `<span class="badge badge-success">0</span>`;
+        return `
+          <tr>
+            <td>#${r.run_id}</td>
+            <td>${runAt}</td>
+            <td>${finAt}</td>
+            <td>${r.total}</td>
+            <td><span class="badge badge-success">${r.success}</span></td>
+            <td>${failBadge}</td>
+          </tr>`;
+      }).join('');
+
+    } catch (e) {
+      document.getElementById('history-tbody').innerHTML =
+        '<tr><td colspan="6" class="empty">데이터를 불러올 수 없습니다.</td></tr>';
+    }
+  }
+
+  loadDashboard();
+</script>
+{% endblock %}

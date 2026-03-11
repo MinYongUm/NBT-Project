@@ -77,4 +77,3 @@ aci:
   - show module
   - show ntp peers
   - show lldp neighbors
-  - show cdp neighbors
