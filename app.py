@@ -19,6 +19,4 @@ app.mount("/static", StaticFiles(directory="web/static"), name="static")
 app.include_router(history.router)
 app.include_router(diff.router)
 app.include_router(backup.router)
-
-# 페이지 라우터
-app.include_router(pages.router)
+app.include_router(pages.router)      # 페이지 라우터

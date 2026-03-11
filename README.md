@@ -1,14 +1,15 @@
 # NBT-Project
-> Current Version: v3.1
+> Current Version: v4.0
 
 ## 1. 프로젝트 개요
 
-Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 CLI 기반 자동화 도구입니다.
+Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 Web 기반 자동화 도구입니다.
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다.
 
-- 언어/프레임워크: Python 3.11, Netmiko, Typer
+- 언어/프레임워크: Python 3.11, Netmiko, FastAPI, Jinja2
 - 실행 환경: Docker (docker-compose)
 - 백업 저장 위치: Ubuntu 호스트 `~/nbt-backup` (볼륨 마운트)
+- Web UI: http://서버IP:8000
 
 ## 2. 주요 기능
 
@@ -21,27 +22,45 @@ Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트�
 - ThreadPoolExecutor 기반 병렬 백업 (max_workers 설정으로 제어)
 - Config Diff 감지: 직전 백업과 비교하여 실제 설정 변경만 감지 (노이즈 필터링 적용)
 - SQLite DB 이력 관리: 백업 실행 결과 및 Config Diff 결과 누적 저장
-- Typer CLI: backup / history / diff 서브커맨드 (v3.1)
-- 알림 연동: Slack Webhook + Email(SMTP) (v3.1)
+- FastAPI 기반 Web UI: 백업 실행, 이력 조회, Config Diff 조회
+- SSE(Server-Sent Events) 기반 실시간 백업 로그 스트리밍
+- Slack / Email 알림 (장비 실패, Config 변경, 백업 완료 요약)
 
 ## 3. 프로젝트 구조
 
 ```
 NBT-Project/
+├── api/
+│   ├── __init__.py
+│   └── routers/
+│       ├── __init__.py
+│       ├── backup.py              # POST /api/backup, GET /api/backup/stream (SSE)
+│       ├── diff.py                # GET /api/diff
+│       ├── history.py             # GET /api/history, GET /api/history/{run_id}
+│       └── pages.py               # HTML 페이지 라우터
 ├── config/
-│   ├── commands.yaml           # 장비별 백업 명령어
-│   └── settings.yaml.example  # 장비 목록 + 백업 설정 + Diff 설정 + 알림 설정 템플릿
+│   ├── commands.yaml              # 장비별 백업 명령어
+│   └── settings.yaml.example     # 장비 목록 + 백업 설정 + Diff 설정 + 알림 설정 템플릿
 ├── core/
-│   └── backup.py              # 백업 실행 메인 로직
+│   └── backup.py                  # 백업 실행 메인 로직 (v4.0)
 ├── utils/
-│   ├── config_loader.py       # YAML 파서 + 환경변수 수신
-│   ├── db_manager.py          # SQLite 백업 이력 및 Config Diff 저장
-│   ├── folder_create.py       # 백업/로그 폴더 생성
-│   └── notifier.py            # Slack Webhook + Email(SMTP) 알림 (v3.1)
-├── .env.example               # 환경변수 템플릿
+│   ├── config_loader.py           # YAML 파서 + 환경변수 수신
+│   ├── db_manager.py              # SQLite 백업 이력 및 Config Diff 저장
+│   ├── folder_create.py           # 백업/로그 폴더 생성
+│   └── notifier.py                # Slack Webhook + Email(SMTP) 알림 모듈
+├── web/
+│   ├── templates/
+│   │   ├── base.html              # 공통 레이아웃 (Pretendard + Geist Mono, 다크 테마)
+│   │   ├── index.html             # 대시보드 (Stat 카드 + 이력 테이블)
+│   │   ├── backup.html            # 백업 실행 + SSE 실시간 로그
+│   │   ├── history.html           # 백업 이력 테이블 (상세 보기 포함)
+│   │   └── diff.html              # Config Diff 이력 (컬러 렌더링)
+│   └── static/                    # 정적 파일
+├── app.py                         # FastAPI Web 서버 진입점 (v4.0)
+├── main.py                        # Typer CLI 진입점 (v3.1, 보조 사용)
+├── .env.example                   # 환경변수 템플릿
 ├── Dockerfile
 ├── docker-compose.yml
-├── main.py                    # Typer CLI 진입점
 └── requirements.txt
 ```
 
@@ -67,26 +86,15 @@ chmod 600 .env
 # 3. 설정 파일 생성
 cp config/settings.yaml.example config/settings.yaml
 # config/settings.yaml에 실제 장비 IP 입력
-
-# 4. 이미지 빌드
-docker compose build
 ```
 
 ### 4-3. .env 설정
 
 ```bash
-# 필수
 NBT_USERNAME=your_username
 NBT_PASSWORD=your_password
 NBT_BACKUP_ROOT=/data/backup
 TZ=Asia/Seoul
-
-# 선택 — Slack 알림
-# NBT_SLACK_WEBHOOK=https://hooks.slack.com/services/XXX/YYY/ZZZ
-
-# 선택 — Email 알림 (Gmail 앱 비밀번호 사용)
-# NBT_SMTP_USER=your_email@gmail.com
-# NBT_SMTP_PASSWORD=your_app_password
 ```
 
 ### 4-4. config/settings.yaml 설정
@@ -98,11 +106,6 @@ devices:
     hosts:
       - 10.x.x.1
 
-  nexus:
-    device_type: cisco_nxos
-    hosts:
-      - 10.x.x.10
-
 backup:
   max_retries: 5
   retry_delay: 10
@@ -113,25 +116,24 @@ diff:
   noise_patterns:
     - "uptime is"
     - "Last reload"
-
-notify:
-  slack:
-    enabled: false
-    webhook_url: ""
-  email:
-    enabled: false
-    smtp_host: "smtp.gmail.com"
-    smtp_port: 587
-    from_addr: "nbt-alert@example.com"
-    to_addrs:
-      - "admin@example.com"
-  events:
-    on_device_failure: true
-    on_diff_detected:  true
-    on_summary:        true
 ```
 
 ### 4-5. 실행
+
+```bash
+# 이미지 빌드
+docker compose build
+
+# Web 서버 실행
+docker compose up
+
+# 백그라운드 실행
+docker compose up -d
+```
+
+브라우저에서 `http://서버IP:8000` 접속
+
+### 4-6. CLI 사용법 (보조)
 
 ```bash
 # 전체 백업
@@ -140,32 +142,39 @@ docker compose run --rm nbt-engine python main.py backup
 # 특정 그룹만 백업
 docker compose run --rm nbt-engine python main.py backup --group mgmt
 
-# 설정 검증만 (실제 장비 접속 없음)
+# 설정 검증만 (실제 접속 없음)
 docker compose run --rm nbt-engine python main.py backup --dry-run
 
 # 최근 백업 이력 조회
 docker compose run --rm nbt-engine python main.py history
-docker compose run --rm nbt-engine python main.py history --limit 10
 
 # 최근 Config Diff 조회
 docker compose run --rm nbt-engine python main.py diff
-docker compose run --rm nbt-engine python main.py diff --limit 20
-
-# 도움말
-docker compose run --rm nbt-engine python main.py --help
 ```
 
-백업 결과는 Ubuntu 호스트 `~/nbt-backup/YYYYMMDD_HHMM/` 폴더에 저장됩니다.
+## 5. Web API
 
-## 5. 보안 주의사항
+| 메서드 | 엔드포인트 | 설명 |
+|---|---|---|
+| GET | / | 대시보드 |
+| GET | /backup | 백업 실행 페이지 |
+| GET | /history | 백업 이력 페이지 |
+| GET | /diff | Config Diff 페이지 |
+| POST | /api/backup | 백업 실행 시작 |
+| GET | /api/backup/stream | SSE 실시간 로그 스트림 |
+| GET | /api/history | 최근 백업 이력 조회 |
+| GET | /api/history/{run_id} | 특정 run 장비별 결과 조회 |
+| GET | /api/diff | 최근 Config Diff 이력 조회 |
+| GET | /docs | Swagger API 문서 |
+
+## 6. 보안 주의사항
 
 - `.env` 파일은 절대 Git에 push하지 마세요 (.gitignore에 등록되어 있습니다)
 - `config/settings.yaml`은 장비 IP가 포함되므로 Git에 push하지 마세요
 - 계정 정보는 반드시 `.env` 또는 환경변수로만 관리합니다
-- Slack Webhook URL, SMTP 계정은 환경변수(`NBT_SLACK_WEBHOOK`, `NBT_SMTP_USER`, `NBT_SMTP_PASSWORD`)로 관리합니다
 - `config/settings.yaml.example`, `.env.example`은 실제 값 없는 템플릿만 Git에 올립니다
 
-## 6. 개발 로드맵
+## 7. 개발 로드맵
 
 ```
 v0.x  : Paramiko
@@ -184,8 +193,16 @@ v2.x  : Docker + 자동화
 
 v3.x  : 고도화
   v3.0  - Config Diff 감지, 노이즈 필터링
-  v3.1  - Typer CLI, 알림(Slack/Email)       ← 현재 버전
+  v3.1  - Typer CLI, 알림(Slack/Email)
 
-v4.x  : AI
-  v4.0  - AI 장애 분석, RAG + MCP 서버
+v4.x  : Web 전환 (CLI → Web, 점진적 마이그레이션)
+  v4.0  - FastAPI 백엔드 + Jinja2 Web UI          ← 현재 버전
+  v4.1  - 장비 관리 UI (settings.yaml → DB/웹 편집)
+  v4.2  - Celery + Redis 비동기 큐 전환
+          WebSocket 실시간 로그 전환
+
+v5.x  : AI (Web 완성 후 착수)
+  v5.0  - AI 장애 분석 (LLM 직접 호출, RAG 없음)
+  v5.1  - RAG 파이프라인 (ChromaDB + RFC/자작 문서)
+  v5.2  - MCP 서버 (Claude Desktop 연동)
 ```
