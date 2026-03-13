@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+{% block title %}장비 관리{% endblock %}
+
+{% block head %}
+<style>
+  /* ── 페이지 레이아웃 ── */
+  .devices-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .devices-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── 헤더 (타이틀 + 추가 버튼) ── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: #444;
+    opacity: 1;
+  }
+  .btn-danger-ghost {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.3);
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .btn-danger-ghost:hover {
+    background: rgba(239,68,68,0.08);
+    opacity: 1;
+  }
+  .btn-edit {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .btn-edit:hover {
+    color: var(--text);
+    border-color: #444;
+    opacity: 1;
+  }
+
+  /* ── 장비 테이블 ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--border);
+    background: #161616;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #202020; }
+  tbody tr.selected { background: rgba(59,130,246,0.07); }
+
+  tbody td {
+    padding: 13px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .td-ip {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .td-group {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .td-type {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .td-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .td-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* 빈 상태 */
+  .empty-state {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* ── 우측 슬라이드 패널 ── */
+  .side-panel {
+    width: 320px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: sticky;
+    top: 36px;
+
+    /* 기본 상태: 숨김 */
+    display: none;
+  }
+  .side-panel.open {
+    display: block;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .panel-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .panel-close:hover { color: var(--text); }
+
+  /* 폼 */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .form-input,
+  .form-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'Pretendard', sans-serif;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus,
+  .form-select:focus {
+    border-color: var(--accent);
+  }
+  .form-input::placeholder { color: #555; }
+
+  .form-select option {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+  }
+  .form-actions .btn { flex: 1; justify-content: center; }
+
+  /* 에러 메시지 */
+  .form-error {
+    display: none;
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(239,68,68,0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+  .form-error.show { display: block; }
+
+  /* 삭제 확인 영역 */
+  .delete-confirm {
+    display: none;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .delete-confirm.show { display: block; }
+  .delete-confirm p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .delete-confirm p strong {
+    color: var(--danger);
+    font-family: var(--mono);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">장비 관리</h1>
+  <button class="btn btn-primary" onclick="openAddPanel()">
+    &#43; 장비 추가
+  </button>
+</div>
+
+<div class="devices-layout">
+
+  <!-- 장비 테이블 -->
+  <div class="devices-main">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>그룹</th>
+            <th>Device Type</th>
+            <th>IP 주소</th>
+            <th>설명</th>
+            <th style="width:120px;">작업</th>
+          </tr>
+        </thead>
+        <tbody id="device-tbody">
+          <tr>
+            <td colspan="5" class="empty-state">불러오는 중...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 우측 슬라이드 패널 -->
+  <div class="side-panel" id="side-panel">
+    <div class="panel-header">
+      <span class="panel-title" id="panel-title">장비 추가</span>
+      <button class="panel-close" onclick="closePanel()">&#10005;</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">그룹</label>
+      <select class="form-select" id="f-group">
+        <option value="mgmt">mgmt</option>
+        <option value="nexus">nexus</option>
+        <option value="aci">aci</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Device Type</label>
+      <select class="form-select" id="f-type">
+        <option value="cisco_ios">cisco_ios</option>
+        <option value="cisco_nxos">cisco_nxos</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">IP 주소</label>
+      <input class="form-input" id="f-ip" type="text"
+             placeholder="예: 192.168.0.210" autocomplete="off" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">설명 <span style="font-weight:400;text-transform:none;letter-spacing:0;">(선택)</span></label>
+      <input class="form-input" id="f-desc" type="text"
+             placeholder="예: Core Switch 1" autocomplete="off" />
+    </div>
+
+    <div class="form-error" id="form-error"></div>
+
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closePanel()">취소</button>
+      <button class="btn btn-primary" id="btn-submit" onclick="submitForm()">저장</button>
+    </div>
+
+    <!-- 수정 모드 전용: 비활성화(삭제) 확인 -->
+    <div class="delete-confirm" id="delete-confirm">
+      <p>이 장비를 비활성화하면 백업 대상에서 제외됩니다.<br>
+         이력은 유지됩니다. (<strong id="confirm-ip"></strong>)</p>
+      <button class="btn btn-danger-ghost" style="width:100%;justify-content:center;"
+              onclick="confirmDeactivate()">비활성화 확인</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let _mode = 'add';      // 'add' | 'edit'
+  let _editId = null;     // 수정 중인 장비 id
+
+  // ------------------------------------------------------------------
+  // 초기 로드
+  // ------------------------------------------------------------------
+  document.addEventListener('DOMContentLoaded', loadDevices);
+
+  async function loadDevices() {
+    const tbody = document.getElementById('device-tbody');
+    try {
+      const res = await fetch('/api/devices');
+      const devices = await res.json();
+
+      if (!devices.length) {
+        tbody.innerHTML = `
+          <tr><td colspan="5" class="empty-state">
+            등록된 장비가 없습니다. 장비 추가 버튼을 눌러 추가하세요.
+          </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = devices.map(d => `
+        <tr data-id="${d.id}" onclick="handleRowClick(${d.id})">
+          <td><span class="td-group">${d.group_name}</span></td>
+          <td><span class="td-type">${d.device_type}</span></td>
+          <td><span class="td-ip">${d.ip}</span></td>
+          <td><span class="td-desc">${d.description || '—'}</span></td>
+          <td>
+            <div class="td-actions" onclick="event.stopPropagation()">
+              <button class="btn btn-edit"
+                      onclick="openEditPanel(${d.id},'${d.group_name}','${d.device_type}','${d.ip}','${(d.description||'').replace(/'/g,"\\'")}')">
+                수정
+              </button>
+              <button class="btn btn-danger-ghost"
+                      onclick="openDeactivate(${d.id},'${d.ip}')">
+                삭제
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+    } catch (e) {
+      tbody.innerHTML = `
+        <tr><td colspan="5" class="empty-state">
+          장비 목록을 불러오지 못했습니다.
+        </td></tr>`;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 행 클릭 — 선택 표시
+  // ------------------------------------------------------------------
+  function handleRowClick(id) {
+    document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('selected'));
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) row.classList.add('selected');
+  }
+
+  // ------------------------------------------------------------------
+  // 패널 열기 / 닫기
+  // ------------------------------------------------------------------
+  function openAddPanel() {
+    _mode = 'add';
+    _editId = null;
+    document.getElementById('panel-title').textContent = '장비 추가';
+    document.getElementById('btn-submit').textContent = '추가';
+    document.getElementById('f-group').value = 'mgmt';
+    document.getElementById('f-type').value = 'cisco_ios';
+    document.getElementById('f-ip').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('delete-confirm').classList.remove('show');
+    hideError();
+    document.getElementById('side-panel').classList.add('open');
+  }
+
+  function openEditPanel(id, group, type, ip, desc) {
+    _mode = 'edit';
+    _editId = id;
+    document.getElementById('panel-title').textContent = '장비 수정';
+    document.getElementById('btn-submit').textContent = '저장';
+    document.getElementById('f-group').value = group;
+    document.getElementById('f-type').value = type;
+    document.getElementById('f-ip').value = ip;
+    document.getElementById('f-desc').value = desc;
+    document.getElementById('delete-confirm').classList.remove('show');
+    hideError();
+    document.getElementById('side-panel').classList.add('open');
+  }
+
+  function openDeactivate(id, ip) {
+    openEditPanel(id, '', '', ip, '');
+    document.getElementById('confirm-ip').textContent = ip;
+    document.getElementById('delete-confirm').classList.add('show');
+  }
+
+  function closePanel() {
+    document.getElementById('side-panel').classList.remove('open');
+    document.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('selected'));
+    hideError();
+    _editId = null;
+  }
+
+  // ------------------------------------------------------------------
+  // 폼 제출 (추가 / 수정)
+  // ------------------------------------------------------------------
+  async function submitForm() {
+    const body = {
+      group_name:  document.getElementById('f-group').value,
+      device_type: document.getElementById('f-type').value,
+      ip:          document.getElementById('f-ip').value.trim(),
+      description: document.getElementById('f-desc').value.trim(),
+    };
+
+    if (!body.ip) {
+      showError('IP 주소를 입력하세요.');
+      return;
+    }
+
+    const url    = _mode === 'add' ? '/api/devices' : `/api/devices/${_editId}`;
+    const method = _mode === 'add' ? 'POST' : 'PUT';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        closePanel();
+        await loadDevices();
+      } else {
+        const data = await res.json();
+        showError(data.detail || '저장에 실패했습니다.');
+      }
+    } catch (e) {
+      showError('서버와 통신할 수 없습니다.');
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 비활성화 (소프트 삭제)
+  // ------------------------------------------------------------------
+  async function confirmDeactivate() {
+    if (!_editId) return;
+    try {
+      const res = await fetch(`/api/devices/${_editId}`, { method: 'DELETE' });
+      if (res.ok) {
+        closePanel();
+        await loadDevices();
+      } else {
+        const data = await res.json();
+        showError(data.detail || '비활성화에 실패했습니다.');
+      }
+    } catch (e) {
+      showError('서버와 통신할 수 없습니다.');
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 에러 표시
+  // ------------------------------------------------------------------
+  function showError(msg) {
+    const el = document.getElementById('form-error');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function hideError() {
+    document.getElementById('form-error').classList.remove('show');
+  }
+</script>
+{% endblock %}

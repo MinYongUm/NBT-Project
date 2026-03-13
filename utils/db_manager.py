@@ -8,6 +8,7 @@ NBT (Network Backup Tools) - Database Manager
     - backup_runs    : 실행 단위 기록
     - backup_results : 장비 단위 기록
     - config_diffs   : Config Diff 결과
+    - devices        : 장비 목록 (v4.1 추가)
 """
 
 import logging
@@ -16,6 +17,8 @@ import threading
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +101,22 @@ class DBManager:
                     diff_content  TEXT,
                     detected_at   TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS devices (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_name  TEXT NOT NULL,
+                    device_type TEXT NOT NULL,
+                    ip          TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    is_active   INTEGER DEFAULT 1,
+                    created_at  TEXT NOT NULL,
+                    updated_at  TEXT NOT NULL
+                );
             """)
             self._conn.commit()
 
     # ------------------------------------------------------------------
-    # Write API
+    # Write API — backup
     # ------------------------------------------------------------------
 
     def start_run(self) -> int:
@@ -161,10 +175,7 @@ class DBManager:
     def get_last_backup_path(
         self, hostname: str, current_run_id: int
     ) -> Optional[str]:
-        """이전 성공 백업 파일 경로를 반환합니다.
-
-        현재 run을 제외하고 SUCCESS 상태 기준 가장 최근 경로를 반환합니다.
-        """
+        """이전 성공 백업 파일 경로를 반환합니다."""
         row = self._conn.execute(
             """SELECT file_path FROM backup_results
                WHERE hostname = ?
@@ -203,15 +214,11 @@ class DBManager:
             logger.info(f"Config Diff 저장: {hostname} ({diff_lines}줄 변경)")
 
     # ------------------------------------------------------------------
-    # Read API (CLI history / diff 커맨드용)
+    # Read API — CLI history / diff 커맨드용
     # ------------------------------------------------------------------
 
     def get_recent_runs(self, limit: int = 5) -> list:
-        """최근 백업 실행 이력을 반환합니다.
-
-        Returns:
-            list[sqlite3.Row]: run_id, run_at, finished_at, total, success, fail
-        """
+        """최근 백업 실행 이력을 반환합니다."""
         rows = self._conn.execute(
             """SELECT run_id, run_at, finished_at, total, success, fail
                FROM backup_runs
@@ -222,11 +229,7 @@ class DBManager:
         return rows
 
     def get_run_results(self, run_id: int) -> list:
-        """특정 run의 장비별 결과를 반환합니다.
-
-        Returns:
-            list[sqlite3.Row]: hostname, ip, device_type, status, duration_sec, error_msg
-        """
+        """특정 run의 장비별 결과를 반환합니다."""
         rows = self._conn.execute(
             """SELECT hostname, ip, device_type, status, duration_sec, error_msg
                FROM backup_results
@@ -237,12 +240,7 @@ class DBManager:
         return rows
 
     def get_recent_diffs(self, limit: int = 10) -> list:
-        """최근 Config Diff 이력을 반환합니다.
-
-        Returns:
-            list[sqlite3.Row]: hostname, ip, diff_lines, previous_file,
-                               current_file, detected_at, diff_content
-        """
+        """최근 Config Diff 이력을 반환합니다."""
         rows = self._conn.execute(
             """SELECT hostname, ip, diff_lines, previous_file,
                       current_file, detected_at, diff_content
@@ -252,3 +250,244 @@ class DBManager:
             (limit,),
         ).fetchall()
         return rows
+
+    # ------------------------------------------------------------------
+    # CRUD API — devices (v4.1)
+    # ------------------------------------------------------------------
+
+    def get_all_devices(self, include_inactive: bool = False) -> list:
+        """장비 목록을 반환합니다.
+
+        Args:
+            include_inactive: True이면 비활성 장비도 포함합니다.
+
+        Returns:
+            list[sqlite3.Row]: id, group_name, device_type, ip,
+                               description, is_active, created_at, updated_at
+        """
+        if include_inactive:
+            rows = self._conn.execute(
+                """SELECT id, group_name, device_type, ip, description,
+                          is_active, created_at, updated_at
+                   FROM devices
+                   ORDER BY group_name, ip"""
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                """SELECT id, group_name, device_type, ip, description,
+                          is_active, created_at, updated_at
+                   FROM devices
+                   WHERE is_active = 1
+                   ORDER BY group_name, ip"""
+            ).fetchall()
+        return rows
+
+    def get_device(self, device_id: int) -> Optional[sqlite3.Row]:
+        """단일 장비를 반환합니다.
+
+        Args:
+            device_id: devices.id
+
+        Returns:
+            sqlite3.Row | None
+        """
+        row = self._conn.execute(
+            """SELECT id, group_name, device_type, ip, description,
+                      is_active, created_at, updated_at
+               FROM devices
+               WHERE id = ?""",
+            (device_id,),
+        ).fetchone()
+        return row
+
+    def add_device(
+        self,
+        group_name: str,
+        device_type: str,
+        ip: str,
+        description: str = "",
+    ) -> int:
+        """새 장비를 추가합니다.
+
+        동일 IP가 비활성(is_active=0) 상태로 존재하면 재활성화합니다.
+        활성(is_active=1) 상태로 이미 존재하면 IntegrityError를 발생시킵니다.
+
+        Args:
+            group_name:  장비 그룹 (mgmt / nexus / aci)
+            device_type: Netmiko device_type (cisco_ios / cisco_nxos)
+            ip:          장비 IP 주소 (UNIQUE)
+            description: 장비 설명 메모 (선택)
+
+        Returns:
+            int: 생성 또는 재활성화된 장비의 id
+
+        Raises:
+            sqlite3.IntegrityError: 활성 상태의 ip가 이미 존재할 때
+        """
+        now = _now_kst()
+        with self._lock:
+            # 동일 IP가 비활성 상태로 존재하는지 먼저 확인
+            existing = self._conn.execute(
+                "SELECT id, is_active FROM devices WHERE ip = ?",
+                (ip,),
+            ).fetchone()
+
+            if existing:
+                if existing["is_active"] == 0:
+                    # 비활성 장비 → 정보 업데이트 후 재활성화
+                    self._conn.execute(
+                        """UPDATE devices
+                           SET group_name  = ?,
+                               device_type = ?,
+                               description = ?,
+                               is_active   = 1,
+                               updated_at  = ?
+                           WHERE id = ?""",
+                        (group_name, device_type, description, now, existing["id"]),
+                    )
+                    self._conn.commit()
+                    device_id = existing["id"]
+                    logger.info(f"장비 재활성화: id={device_id} ip={ip} group={group_name}")
+                    return device_id
+                else:
+                    # 활성 상태로 이미 존재 → 중복 오류
+                    raise sqlite3.IntegrityError(
+                        f"UNIQUE constraint failed: devices.ip ({ip})"
+                    )
+
+            # 신규 INSERT
+            cur = self._conn.execute(
+                """INSERT INTO devices
+                   (group_name, device_type, ip, description, is_active,
+                    created_at, updated_at)
+                   VALUES (?, ?, ?, ?, 1, ?, ?)""",
+                (group_name, device_type, ip, description, now, now),
+            )
+            self._conn.commit()
+            device_id = cur.lastrowid
+            logger.info(f"장비 추가: id={device_id} ip={ip} group={group_name}")
+            return device_id
+
+    def update_device(
+        self,
+        device_id: int,
+        group_name: str,
+        device_type: str,
+        ip: str,
+        description: str = "",
+    ) -> bool:
+        """장비 정보를 수정합니다.
+
+        Args:
+            device_id:   수정할 장비의 id
+            group_name:  변경할 그룹명
+            device_type: 변경할 device_type
+            ip:          변경할 IP (UNIQUE 제약 적용)
+            description: 변경할 설명
+
+        Returns:
+            bool: 수정된 행이 있으면 True, 없으면 False
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                """UPDATE devices
+                   SET group_name  = ?,
+                       device_type = ?,
+                       ip          = ?,
+                       description = ?,
+                       updated_at  = ?
+                   WHERE id = ?""",
+                (group_name, device_type, ip, description, _now_kst(), device_id),
+            )
+            self._conn.commit()
+            updated = cur.rowcount > 0
+            if updated:
+                logger.info(f"장비 수정: id={device_id} ip={ip}")
+            else:
+                logger.warning(f"장비 수정 대상 없음: id={device_id}")
+            return updated
+
+    def deactivate_device(self, device_id: int) -> bool:
+        """장비를 비활성화합니다 (소프트 삭제).
+
+        실제 행을 삭제하지 않고 is_active=0으로 변경합니다.
+        백업 이력(backup_results)과의 연결을 유지하기 위함입니다.
+
+        Args:
+            device_id: 비활성화할 장비의 id
+
+        Returns:
+            bool: 처리된 행이 있으면 True, 없으면 False
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                """UPDATE devices
+                   SET is_active  = 0,
+                       updated_at = ?
+                   WHERE id = ?""",
+                (_now_kst(), device_id),
+            )
+            self._conn.commit()
+            updated = cur.rowcount > 0
+            if updated:
+                logger.info(f"장비 비활성화: id={device_id}")
+            else:
+                logger.warning(f"장비 비활성화 대상 없음: id={device_id}")
+            return updated
+
+    def upsert_devices_from_yaml(self, settings_path: Path) -> int:
+        """settings.yaml의 devices 섹션을 DB로 import합니다 (A안 마이그레이션).
+
+        이미 DB에 있는 IP는 건너뜁니다 (INSERT OR IGNORE).
+        서버 시작 시 1회 호출하여 초기 데이터를 투입합니다.
+
+        Args:
+            settings_path: config/settings.yaml 경로
+
+        Returns:
+            int: 새로 추가된 장비 수
+
+        Raises:
+            FileNotFoundError: settings.yaml이 없는 경우
+        """
+        if not settings_path.exists():
+            raise FileNotFoundError(
+                f"settings.yaml을 찾을 수 없습니다: {settings_path}"
+            )
+
+        with settings_path.open(encoding="utf-8") as f:
+            settings: dict = yaml.safe_load(f) or {}
+
+        devices_raw: dict = settings.get("devices", {})
+        if not devices_raw:
+            logger.warning("settings.yaml에 devices 섹션 없음 — 마이그레이션 건너뜀")
+            return 0
+
+        now = _now_kst()
+        inserted = 0
+
+        with self._lock:
+            for group_name, group_data in devices_raw.items():
+                device_type = group_data.get("device_type", "")
+                hosts: list = group_data.get("hosts", [])
+
+                for ip in hosts:
+                    cur = self._conn.execute(
+                        """INSERT OR IGNORE INTO devices
+                           (group_name, device_type, ip, description,
+                            is_active, created_at, updated_at)
+                           VALUES (?, ?, ?, '', 1, ?, ?)""",
+                        (group_name, device_type, ip, now, now),
+                    )
+                    if cur.rowcount > 0:
+                        inserted += 1
+                        logger.info(
+                            f"장비 import: ip={ip} group={group_name}"
+                        )
+
+            self._conn.commit()
+
+        logger.info(
+            f"settings.yaml 마이그레이션 완료 — 신규 추가: {inserted}대"
+        )
+        return inserted

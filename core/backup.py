@@ -1,6 +1,6 @@
 """
 NBT (Network Backup Tools) - Main Backup Module
-- Version: 3.1
+- Version: 4.1
 - Cisco IOS, IOS-XE, NX-OS 장비의 설정을 자동으로 백업하는 모듈
 
 Update History:
@@ -13,10 +13,13 @@ Update History:
 - ver 2.3          : ThreadPoolExecutor 병렬 실행
 - ver 3.0          : Config Diff 감지, 노이즈 필터링
 - ver 3.1          : Typer CLI 연동, group_filter, dry_run, Notifier 연동
+- ver 4.0          : FastAPI Web UI 연동, log_queue 파라미터 추가
+- ver 4.1          : 장비 목록 로드 경로 변경 settings.yaml → devices DB
 """
 
 import difflib
 import logging
+import os
 import queue
 import re
 import time
@@ -91,7 +94,6 @@ def _setup_logging(log_folder: Path) -> None:
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    # 중복 핸들러 방지
     if not root_logger.handlers:
         root_logger.addHandler(file_handler)
         root_logger.addHandler(console_handler)
@@ -104,38 +106,41 @@ def _setup_logging(log_folder: Path) -> None:
 # ------------------------------------------------------------------
 
 def _build_device_tasks(
-    config: AppConfig,
+    devices_from_db: list,
+    commands: dict,
     group_filter: Optional[str] = None,
 ) -> list[DeviceTask]:
-    """전체 장비 그룹을 단일 DeviceTask 리스트로 평탄화합니다.
+    """DB에서 가져온 활성 장비 목록을 DeviceTask 리스트로 변환합니다.
 
     Args:
-        config: AppConfig 인스턴스
-        group_filter: 특정 그룹만 실행할 경우 그룹명 (mgmt/nexus/aci)
+        devices_from_db: db.get_all_devices()의 반환값 (sqlite3.Row 리스트)
+        commands:        commands.yaml 기반 명령어 딕셔너리
+        group_filter:    특정 그룹만 실행할 경우 그룹명
     """
     tasks: list[DeviceTask] = []
 
-    for group_name, group_data in config.devices.items():
+    for row in devices_from_db:
+        # group_name을 group_filter 비교 전에 먼저 할당
+        group_name  = row["group_name"]
+        device_type = row["device_type"]
+        ip          = row["ip"]
+        cmd_list    = commands.get(group_name, [])
+
         if group_filter and group_name.lower() != group_filter.lower():
             continue
 
-        device_type = group_data["device_type"]
-        hosts = group_data["hosts"]
-        commands = config.commands.get(group_name, [])
-
-        if not commands:
+        if not cmd_list:
             logger.warning(f"[{group_name}] commands.yaml에 명령어 없음 — 건너뜀")
             continue
 
-        for host in hosts:
-            tasks.append(
-                DeviceTask(
-                    host=host,
-                    device_type=device_type,
-                    group_name=group_name,
-                    commands=commands,
-                )
+        tasks.append(
+            DeviceTask(
+                host=ip,
+                device_type=device_type,
+                group_name=group_name,
+                commands=cmd_list,
             )
+        )
 
     return tasks
 
@@ -165,13 +170,7 @@ def _run_diff(
     noise_patterns: list[str],
     notifier: Notifier,
 ) -> Optional[DiffResult]:
-    """이전 백업과 현재 백업을 비교하여 Config Diff를 감지합니다.
-
-    흐름:
-        1. 첫 번째 백업 → None 반환 (비교 대상 없음)
-        2. 변경 없음   → None 반환 ([OK] 로깅)
-        3. 변경 있음   → DiffResult 반환 + DB 저장 + 알림 전송
-    """
+    """이전 백업과 현재 백업을 비교하여 Config Diff를 감지합니다."""
     if result.status != "SUCCESS" or result.file_path is None:
         return None
 
@@ -240,13 +239,7 @@ def _backup_device(
     run_id: int,
     notifier: Notifier,
 ) -> BackupResult:
-    """개별 장비 백업을 수행합니다.
-
-    예외 계층:
-        - NetmikoAuthenticationException : 즉시 중단 (재시도 무의미)
-        - NetmikoTimeoutException         : 재시도
-        - Exception                       : 재시도 + 스택 로깅
-    """
+    """개별 장비 백업을 수행합니다."""
     max_retries: int = config.backup["max_retries"]
     retry_delay: int = config.backup["retry_delay"]
 
@@ -333,7 +326,6 @@ def _backup_device(
             )
             time.sleep(retry_delay)
 
-    # 모든 재시도 소진
     duration = time.monotonic() - start_time
     logger.error(f"[{task.host}] 최종 연결 실패")
 
@@ -356,7 +348,6 @@ def _backup_device(
         duration_sec=result.duration_sec,
         error_msg=last_error,
     )
-    # 장비 개별 실패 알림
     notifier.send_device_failure(hostname, task.host, last_error)
     return result
 
@@ -374,28 +365,46 @@ def run_backup(
 
     Args:
         group_filter: 특정 그룹만 실행 (mgmt/nexus/aci). None이면 전체 실행.
-        dry_run: True이면 설정 검증만 수행하고 실제 접속하지 않습니다.
+        dry_run:      True이면 설정 검증만 수행하고 실제 접속하지 않습니다.
+        log_queue:    Web 모드 시 SSE 전송용 큐. None이면 CLI 모드(print).
     """
+    def _log(msg: str) -> None:
+        if log_queue is not None:
+            log_queue.put(msg)
+        else:
+            print(msg)
+
     config = load_config()
-    tasks = _build_device_tasks(config, group_filter)
+
+    # 장비 목록: settings.yaml → devices DB (v4.1)
+    # db 변수 정의 전에 별도 임시 연결로 장비 목록만 먼저 로드
+    backup_root = os.environ.get("NBT_BACKUP_ROOT", "/data/backup")
+    db_path = Path(backup_root) / "nbt_history.db"
+    _tmp_db = DBManager(db_path)
+    _tmp_db.initialize()
+    try:
+        devices_from_db = _tmp_db.get_all_devices(include_inactive=False)
+    finally:
+        _tmp_db.close()
+
+    tasks = _build_device_tasks(devices_from_db, config.commands, group_filter)
 
     # dry-run: 설정 검증만 수행
     if dry_run:
-        _print_dry_run(tasks, config)
+        _print_dry_run(tasks, config, _log)
         return
 
     if not tasks:
-        msg = f"실행할 장비가 없습니다. group_filter='{group_filter}'"
-        if log_queue:
-            log_queue.put(msg)
+        _log(f"  실행할 장비가 없습니다. group_filter='{group_filter}'")
         logger.warning(f"실행할 장비 없음: group_filter={group_filter}")
+        if log_queue is not None:
+            log_queue.put("[DONE]")
         return
 
     backup_folder = create_backup_folder()
     log_folder = create_log_folder()
     _setup_logging(log_folder)
 
-    db_path = backup_folder.parent / "nbt_history.db"
     db = DBManager(db_path)
     db.initialize()
 
@@ -409,7 +418,6 @@ def run_backup(
         logger.info(f"그룹 필터: {group_filter}")
 
     try:
-        # 병렬 백업 실행
         max_workers: int = config.backup["max_workers"]
         with ThreadPoolExecutor(
             max_workers=max_workers,
@@ -427,18 +435,14 @@ def run_backup(
                     results.append(result)
                     status_icon = "OK  " if result.status == "SUCCESS" else "FAIL"
                     msg = (
-                        f"[{status_icon}] {result.hostname} "
-                        f"{result.task.host} {result.duration_sec:.1f}s"
+                        f"  [{status_icon}] {result.hostname:<20} "
+                        f"{result.task.host:<16} {result.duration_sec:.1f}s"
                     )
-                    if log_queue:
-                        log_queue.put(msg)
-                    else:
-                        print(f"  {msg}")  # CLI 모드
+                    _log(msg)
                 except Exception as e:
                     task = future_map[future]
                     logger.error(f"[{task.host}] Future 예외: {e}", exc_info=True)
 
-        # Diff 분석 (병렬 완료 후 순차 실행)
         noise_patterns = config.diff.get("noise_patterns", [])
         diff_results: list[DiffResult] = []
 
@@ -449,7 +453,6 @@ def run_backup(
             if diff:
                 diff_results.append(diff)
 
-        # 집계
         total = len(results)
         success = sum(1 for r in results if r.status == "SUCCESS")
         fail = total - success
@@ -458,35 +461,37 @@ def run_backup(
         db.finish_run(run_id, total, success, fail)
 
         summary = (
-            f"백업 완료 | 전체: {total}  성공: {success}  실패: {fail}"
+            f"\n  백업 완료 | 전체: {total}  성공: {success}  실패: {fail}"
             f"  /  Config 변경: {diff_count}건"
         )
-        if log_queue:
-            log_queue.put(f"[DONE] {summary}")
-        else:
-            print(f"\n  {summary}")  # CLI 모드
-        logger.info(summary)
+        _log(summary)
+        logger.info(summary.strip())
 
-        # 전체 완료 요약 알림
         notifier.send_summary(total, success, fail, diff_count)
 
     finally:
         db.close()
+        if log_queue is not None:
+            log_queue.put("[DONE]")
 
     logger.info(f"===== NBT 백업 종료 | run_id={run_id} =====")
 
 
-def _print_dry_run(tasks: list[DeviceTask], config: AppConfig) -> None:
+def _print_dry_run(
+    tasks: list[DeviceTask],
+    config: AppConfig,
+    _log,
+) -> None:
     """dry-run 모드: 설정 검증 결과와 장비 목록을 출력합니다."""
-    print("\n  [DRY-RUN] 설정 검증 완료 — 실제 장비 접속은 수행하지 않습니다.")
-    print(f"\n  장비 목록 (총 {len(tasks)}대):")
-    print(f"  {'그룹':<10} {'device_type':<20} {'host'}")
-    print(f"  {'-'*50}")
+    _log("\n  [DRY-RUN] 설정 검증 완료 — 실제 장비 접속은 수행하지 않습니다.")
+    _log(f"\n  장비 목록 (총 {len(tasks)}대):")
+    _log(f"  {'그룹':<10} {'device_type':<20} {'host'}")
+    _log(f"  {'-'*50}")
     for task in tasks:
-        print(f"  [{task.group_name:<8}] {task.device_type:<20} {task.host}")
-    print(f"\n  backup 설정: {config.backup}")
+        _log(f"  [{task.group_name:<8}] {task.device_type:<20} {task.host}")
+    _log(f"\n  backup 설정: {config.backup}")
     notify_cfg = config.notify
     slack_on = notify_cfg.get("slack", {}).get("enabled", False)
     email_on = notify_cfg.get("email", {}).get("enabled", False)
-    print(f"  알림: Slack={'ON' if slack_on else 'OFF'}  Email={'ON' if email_on else 'OFF'}")
-    print()
+    _log(f"  알림: Slack={'ON' if slack_on else 'OFF'}  Email={'ON' if email_on else 'OFF'}")
+    _log("")

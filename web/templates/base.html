@@ -143,7 +143,7 @@
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-title">Network Backup Tools</div>
-      <div class="logo-version">v4.0</div>
+      <div class="logo-version">v4.1</div>
     </div>
     <nav class="sidebar-nav">
       <a href="/" class="nav-item {% if active == 'dashboard' %}active{% endif %}">
@@ -158,6 +158,9 @@
       <a href="/diff" class="nav-item {% if active == 'diff' %}active{% endif %}">
         <span class="nav-icon">&#177;</span> Config Diff
       </a>
+      <a href="/devices" class="nav-item {% if active == 'devices' %}active{% endif %}">
+        <span class="nav-icon">&#9641;</span> 장비 관리
+      </a>
     </nav>
   </aside>
 
@@ -165,6 +168,8 @@
   <main class="main">
     {% block content %}{% endblock %}
   </main>
+
+  {% block scripts %}{% endblock %}
 
 </body>
 </html>

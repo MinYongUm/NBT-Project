@@ -36,3 +36,10 @@ def diff_page(request: Request):
     return templates.TemplateResponse(
         "diff.html", {"request": request, "active": "diff"}
     )
+
+
+@router.get("/devices")
+def devices_page(request: Request):
+    return templates.TemplateResponse(
+        "devices.html", {"request": request, "active": "devices"}
+    )
