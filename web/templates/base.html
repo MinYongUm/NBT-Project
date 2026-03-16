@@ -6,170 +6,467 @@
   <title>{% block title %}NBT{% endblock %} — Network Backup Tools</title>
 
   <!-- Pretendard -->
-  <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
-  <!-- Geist Mono -->
-  <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/geist@1.3.0/dist/fonts/geist-mono/style.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    rel="stylesheet"
+  />
 
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* ── 변수 ──────────────────────────────────────────────── */
     :root {
-      --bg:        #0f0f0f;
-      --surface:   #1a1a1a;
-      --border:    #2a2a2a;
-      --accent:    #3b82f6;
-      --text:      #e5e5e5;
-      --text-muted:#888;
-      --success:   #22c55e;
-      --danger:    #ef4444;
-      --mono:      'Geist Mono', monospace;
+      --bg:          #0f0f0f;
+      --surface:     #1a1a1a;
+      --border:      #2a2a2a;
+      --accent:      #3b82f6;
+      --accent-dim:  #1d4ed8;
+      --success:     #22c55e;
+      --danger:      #ef4444;
+      --text:        #e5e7eb;
+      --text-muted:  #6b7280;
+      --mono:        'Geist Mono', 'Fira Code', monospace;
+      --sans:        'Pretendard', sans-serif;
+      --radius:      12px;
+      --radius-sm:   8px;
+      --nav-h:       56px;
     }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Pretendard', sans-serif;
-      display: flex;
+      font-family: var(--sans);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* ── 사이드바 ── */
-    .sidebar {
-      width: 220px;
-      min-height: 100vh;
+    /* ── Nav ────────────────────────────────────────────────── */
+    .nav {
+      height: var(--nav-h);
       background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      padding: 24px 0;
-      position: fixed;
-      top: 0; left: 0;
-    }
-
-    .sidebar-logo {
-      padding: 0 20px 24px;
       border-bottom: 1px solid var(--border);
-    }
-
-    .sidebar-logo .logo-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.3px;
-    }
-
-    .sidebar-logo .logo-version {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      margin-top: 4px;
-    }
-
-    .sidebar-nav {
-      padding: 16px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .nav-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 9px 12px;
-      border-radius: 8px;
+      padding: 0 24px;
+      gap: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    /* 로고 */
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      margin-right: 32px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-logo-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .nav-logo-text {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: .05em;
+    }
+
+    /* 메뉴 링크 */
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: background 0.15s, color 0.15s;
+      transition: color .15s, background .15s;
+      white-space: nowrap;
     }
 
-    .nav-item:hover {
-      background: #242424;
+    .nav-link svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .nav-link:hover {
       color: var(--text);
+      background: rgba(255,255,255,.05);
     }
 
-    .nav-item.active {
-      background: rgba(59, 130, 246, 0.12);
+    .nav-link.active {
       color: var(--accent);
+      background: rgba(59,130,246,.1);
     }
 
-    .nav-icon { font-size: 16px; }
+    /* ── 로그아웃 버튼 (v4.3 추가) ─────────────────────────── */
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
 
-    /* ── 메인 콘텐츠 ── */
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      white-space: nowrap;
+    }
+
+    .btn-logout svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .btn-logout:hover {
+      color: var(--danger);
+      border-color: rgba(239,68,68,.3);
+      background: rgba(239,68,68,.06);
+    }
+
+    .btn-logout:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* ── 메인 콘텐츠 ────────────────────────────────────────── */
     .main {
-      margin-left: 220px;
       flex: 1;
-      padding: 36px 40px;
+      padding: 32px 24px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
     }
 
-    .page-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 28px;
-      letter-spacing: -0.5px;
-    }
-
-    /* ── 카드 ── */
+    /* ── 공통 카드 ──────────────────────────────────────────── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 24px;
     }
 
-    /* ── 뱃지 ── */
+    /* ── Stat 카드 ──────────────────────────────────────────── */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .stat-card.accent::before  { background: var(--accent); }
+    .stat-card.success::before { background: var(--success); }
+    .stat-card.danger::before  { background: var(--danger); }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    /* ── 공통 테이블 ────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(42,42,42,.6);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── 배지 ───────────────────────────────────────────────── */
     .badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       padding: 2px 8px;
-      border-radius: 6px;
+      border-radius: 4px;
       font-family: var(--mono);
       font-size: 11px;
       font-weight: 600;
+      letter-spacing: .03em;
     }
-    .badge-success { background: rgba(34,197,94,0.12); color: var(--success); }
-    .badge-danger  { background: rgba(239,68,68,0.12);  color: var(--danger); }
-    .badge-blue    { background: rgba(59,130,246,0.12); color: var(--accent); }
+
+    .badge-success {
+      background: rgba(34,197,94,.12);
+      color: var(--success);
+    }
+
+    .badge-danger {
+      background: rgba(239,68,68,.12);
+      color: var(--danger);
+    }
+
+    .badge-blue {
+      background: rgba(59,130,246,.12);
+      color: var(--accent);
+    }
+
+    .badge-gray {
+      background: rgba(107,114,128,.12);
+      color: var(--text-muted);
+    }
+
+    /* ── 버튼 공통 ──────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background .15s, opacity .15s;
+    }
+
+    .btn svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-dim); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+    }
+
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── 401 처리용 전역 핸들러 (v4.3 추가) ────────────────── */
+    /* fetch 401 수신 시 /login 리다이렉트는 아래 script 블록에서 처리 */
   </style>
 
   {% block head %}{% endblock %}
 </head>
 <body>
 
-  <!-- 사이드바 -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-title">Network Backup Tools</div>
-      <div class="logo-version">v4.2</div>
+<!-- Nav -->
+<nav class="nav">
+
+  <!-- 로고 -->
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
     </div>
-    <nav class="sidebar-nav">
-      <a href="/" class="nav-item {% if active == 'dashboard' %}active{% endif %}">
-        <span class="nav-icon">&#9632;</span> 대시보드
-      </a>
-      <a href="/backup" class="nav-item {% if active == 'backup' %}active{% endif %}">
-        <span class="nav-icon">&#9654;</span> 백업 실행
-      </a>
-      <a href="/history" class="nav-item {% if active == 'history' %}active{% endif %}">
-        <span class="nav-icon">&#9776;</span> 백업 이력
-      </a>
-      <a href="/diff" class="nav-item {% if active == 'diff' %}active{% endif %}">
-        <span class="nav-icon">&#177;</span> Config Diff
-      </a>
-      <a href="/devices" class="nav-item {% if active == 'devices' %}active{% endif %}">
-        <span class="nav-icon">&#9641;</span> 장비 관리
-      </a>
-    </nav>
-  </aside>
+    <span class="nav-logo-text">NBT</span>
+  </a>
 
-  <!-- 메인 -->
-  <main class="main">
-    {% block content %}{% endblock %}
-  </main>
+  <!-- 메뉴 -->
+  <div class="nav-links">
 
-  {% block scripts %}{% endblock %}
+    <a href="/"        class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+      <svg viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      대시보드
+    </a>
+
+    <a href="/backup"  class="nav-link {% if request.url.path == '/backup' %}active{% endif %}">
+      <svg viewBox="0 0 24 24">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      백업 실행
+    </a>
+
+    <a href="/history" class="nav-link {% if request.url.path == '/history' %}active{% endif %}">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      백업 이력
+    </a>
+
+    <a href="/diff"    class="nav-link {% if request.url.path == '/diff' %}active{% endif %}">
+      <svg viewBox="0 0 24 24">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/>
+      </svg>
+      Config Diff
+    </a>
+
+    <a href="/devices" class="nav-link {% if request.url.path == '/devices' %}active{% endif %}">
+      <svg viewBox="0 0 24 24">
+        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+        <line x1="6" y1="6" x2="6.01" y2="6"/>
+        <line x1="6" y1="18" x2="6.01" y2="18"/>
+      </svg>
+      장비 관리
+    </a>
+
+  </div>
+
+  <!-- 우측: 로그아웃 버튼 (v4.3 추가) -->
+  <div class="nav-right">
+    <button class="btn-logout" id="logoutBtn" title="로그아웃">
+      <svg viewBox="0 0 24 24">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      로그아웃
+    </button>
+  </div>
+
+</nav>
+
+<!-- 메인 콘텐츠 -->
+<main class="main">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- 공통 스크립트 -->
+<script>
+  // ── 로그아웃 ─────────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', async function () {
+    this.disabled = true;
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/login';
+    }
+  });
+
+  // ── 전역 401 핸들러 ───────────────────────────────────────────
+  // 각 페이지의 fetch 호출에서 401 수신 시 /login으로 리다이렉트
+  // 사용법: 각 페이지 fetch 응답 처리에서 handle401(res) 호출
+  function handle401(response) {
+    if (response.status === 401) {
+      window.location.href = '/login';
+      return true;
+    }
+    return false;
+  }
+</script>
+
+{% block scripts %}{% endblock %}
 
 </body>
 </html>

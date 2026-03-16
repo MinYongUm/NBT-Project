@@ -12,6 +12,7 @@ services:
   nbt-engine:
     build: .
     container_name: nbt-engine
+    env_file: .env 
     restart: unless-stopped
     ports:
       - "8000:8000"
