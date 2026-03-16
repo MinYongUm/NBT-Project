@@ -199,9 +199,9 @@ v3.x  : 고도화
   v3.1  - Typer CLI, 알림(Slack/Email)
 
 v4.x  : Web 전환
-  v4.0  - FastAPI 백엔드 + Jinja2 Web UI                      (완료)
-  v4.1  - 장비 관리 UI (settings.yaml → DB/웹 편집)             (완료)
-  v4.2  - Celery + Redis, WebSocket                           (완료) <- 현재 버전
+  v4.0  - FastAPI 백엔드 + Jinja2 Web UI
+  v4.1  - 장비 관리 UI (settings.yaml → DB/웹 편집)
+  v4.2  - Celery + Redis, WebSocket
 
 v5.x  : AI (Web 완성 후 착수)
   v5.0  - AI 장애 분석 (LLM 직접 호출, RAG 없음)
