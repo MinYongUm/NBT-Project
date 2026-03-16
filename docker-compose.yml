@@ -1,20 +1,53 @@
 services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: nbt-redis
+    restart: unless-stopped
+    # 작업 큐 전용 — 외부 포트 노출 불필요
+    # 컨테이너 내부 네트워크(nbt-net)에서만 접근
+    networks:
+      - nbt-net
+
   nbt-engine:
     build: .
-    container_name: nbt-auto-runtime
+    container_name: nbt-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
     volumes:
-      # 코드 동기화 (개발용)
       - .:/app
-      # 백업 결과 저장 (호스트의 ~/nbt-backup에 영구 저장)
       - ~/nbt-backup:/data/backup
     environment:
-      # 백업 저장 경로 (컨테이너 내부 기준)
       - NBT_BACKUP_ROOT=/data/backup
-      # 타임존 설정 (폴더명 타임스탬프용)
       - TZ=Asia/Seoul
-    # EVE-NG 내 장비(192.168.0.x)와 직접 통신하기 위해 호스트 네트워크 사용
-    ports:
-      - "8000:8000"      
-    network_mode: host
+      # Celery 브로커/백엔드 주소 (컨테이너명으로 접근)
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - nbt-net
 
-    
+  nbt-worker:
+    build: .
+    container_name: nbt-worker
+    restart: unless-stopped
+    # 웹 서버가 아닌 Celery 워커로 실행
+    command: celery -A core.celery_app worker --loglevel=info --concurrency=4
+    volumes:
+      - .:/app
+      - ~/nbt-backup:/data/backup
+    environment:
+      - NBT_BACKUP_ROOT=/data/backup
+      - TZ=Asia/Seoul
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - nbt-net
+
+networks:
+  nbt-net:
+    driver: bridge

@@ -1,13 +1,24 @@
 # NBT-Project 필수 라이브러리
 
-# 기존 (v3.1)
+# 네트워크 장비 접속
 netmiko>=4.0.0
 paramiko>=2.7.0
+
+# 설정 관리
 pyyaml>=6.0
 python-dotenv>=1.0.0
+
+# CLI
 typer>=0.12.0
 
-# v4.0 Web 전환
+# Web 서버 (v4.1)
 fastapi>=0.110.0
 uvicorn>=0.29.0
 jinja2>=3.1.0
+
+# 비동기 작업 큐 (v4.2)
+celery>=5.3.0
+redis>=5.0.0
+
+# WebSocket (v4.2)
+websockets>=12.0
