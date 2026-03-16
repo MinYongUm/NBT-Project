@@ -44,10 +44,18 @@
 
   .btn-primary:hover:not(:disabled) { opacity: 0.85; }
 
+  .btn-secondary {
+    background: #2a2a2a;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover:not(:disabled) { background: #333; color: var(--text); }
+
   .log-box {
     background: #0a0a0a;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 0 0 12px 12px;
     padding: 20px 24px;
     font-family: var(--mono);
     font-size: 13px;
@@ -58,11 +66,38 @@
     color: var(--text-muted);
   }
 
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    padding: 4px 12px;
+    font-size: 12px;
+    font-family: 'Pretendard', sans-serif;
+    cursor: pointer;
+  }
+
+  .btn-clear:hover { background: #2a2a2a; color: var(--text); }
+
   .log-line { margin: 0; }
   .log-ok   { color: var(--success); }
   .log-fail { color: var(--danger); }
   .log-done { color: var(--accent); font-weight: 600; }
   .log-info { color: var(--text-muted); }
+  .log-warn { color: #f59e0b; }
 
   .status-bar {
     display: flex;
@@ -84,8 +119,8 @@
     animation: pulse 1s infinite;
   }
 
-  .dot.done    { background: var(--success); }
-  .dot.idle    { background: var(--border); }
+  .dot.done { background: var(--success); }
+  .dot.idle { background: var(--border); }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -107,6 +142,10 @@
   <button class="btn btn-primary" id="run-btn" onclick="startBackup()">
     백업 시작
   </button>
+  <button class="btn btn-secondary" id="stop-btn"
+          onclick="stopBackup()" style="display:none;">
+    로그 숨기기
+  </button>
 </div>
 
 <div class="status-bar">
@@ -114,74 +153,135 @@
   <span id="status-text">대기 중</span>
 </div>
 
+<div class="log-header">
+  <span>실시간 로그</span>
+  <button class="btn-clear" onclick="clearLog()">지우기</button>
+</div>
 <div class="log-box" id="log-box">
   <p class="log-line log-info">백업 시작 버튼을 눌러주세요.</p>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-  function startBackup() {
+  let ws = null;
+  let currentRunId = null;
+  let isDone = false;
+  let retryCount = 0;
+  const MAX_RETRY = 5;
+
+  // ------------------------------------------------------------------
+  // 백업 시작
+  // ------------------------------------------------------------------
+  async function startBackup() {
     const group = document.getElementById('group-select').value;
-    const btn   = document.getElementById('run-btn');
-    const dot   = document.getElementById('status-dot');
-    const statusText = document.getElementById('status-text');
-    const logBox = document.getElementById('log-box');
 
-    btn.disabled = true;
-    dot.className = 'dot running';
-    statusText.textContent = '백업 실행 중...';
-    logBox.innerHTML = '';
+    isDone = false;
+    retryCount = 0;
+    currentRunId = null;
 
-    // 백업 시작
-    const url = group ? `/api/backup?group=${group}` : '/api/backup';
-    fetch(url, { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'already_running') {
-          appendLog('이미 백업이 실행 중입니다.', 'log-fail');
-          btn.disabled = false;
-          dot.className = 'dot idle';
-          statusText.textContent = '대기 중';
-          return;
-        }
-        // SSE 스트림 연결
-        streamLogs(btn, dot, statusText);
-      })
-      .catch(() => {
-        appendLog('백업 시작 요청 실패', 'log-fail');
-        btn.disabled = false;
-        dot.className = 'dot idle';
-        statusText.textContent = '오류 발생';
-      });
+    document.getElementById('run-btn').disabled = true;
+    document.getElementById('stop-btn').style.display = 'inline-block';
+    setStatus('running', '백업 실행 중...');
+    clearLog();
+
+    try {
+      const url = group ? `/api/backup?group=${group}` : '/api/backup';
+      const res = await fetch(url, { method: 'POST' });
+
+      if (res.status === 409) {
+        appendLog('이미 백업이 실행 중입니다. 완료 후 다시 시도하세요.', 'log-warn');
+        resetUI();
+        return;
+      }
+
+      if (!res.ok) {
+        appendLog(`백업 요청 실패: HTTP ${res.status}`, 'log-fail');
+        resetUI();
+        return;
+      }
+
+      const data = await res.json();
+      currentRunId = data.run_id;
+      appendLog(`백업 작업 등록 완료 | run_id=${currentRunId}`, 'log-info');
+      connectWebSocket(currentRunId);
+
+    } catch (err) {
+      appendLog(`요청 오류: ${err}`, 'log-fail');
+      resetUI();
+    }
   }
 
-  function streamLogs(btn, dot, statusText) {
-    const es = new EventSource('/api/backup/stream');
+  // ------------------------------------------------------------------
+  // WebSocket 연결 (재연결 로직 포함)
+  // ------------------------------------------------------------------
+  function connectWebSocket(runId) {
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${protocol}://${location.host}/api/backup/ws/${runId}`;
 
-    es.onmessage = (e) => {
-      const msg = e.data;
-      if (msg.startsWith('[OK]')) {
-        appendLog(msg, 'log-ok');
-      } else if (msg.startsWith('[FAIL]')) {
-        appendLog(msg, 'log-fail');
-      } else if (msg.startsWith('[DONE]')) {
-        appendLog(msg, 'log-done');
-        es.close();
-        btn.disabled = false;
-        dot.className = 'dot done';
-        statusText.textContent = '완료';
+    ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      const payload = JSON.parse(event.data);
+      const level   = payload.level   || 'INFO';
+      const message = payload.message || '';
+
+      if (level === 'DONE') {
+        isDone = true;
+        appendLog('━━━ 백업 완료 ━━━', 'log-done');
+        setStatus('done', '완료');
+        resetUI();
+        ws.close();
+        return;
+      }
+
+      if (message.includes('[OK')) {
+        appendLog(message, 'log-ok');
+      } else if (message.includes('[FAIL]') || message.includes('[ERROR]')) {
+        appendLog(message, 'log-fail');
       } else {
-        appendLog(msg, 'log-info');
+        appendLog(message, 'log-info');
       }
     };
 
-    es.onerror = () => {
-      es.close();
-      btn.disabled = false;
-      dot.className = 'dot idle';
-      statusText.textContent = '연결 오류';
+    ws.onerror = () => {
+      appendLog('WebSocket 오류 발생', 'log-warn');
+    };
+
+    ws.onclose = () => {
+      if (isDone || currentRunId === null) return;
+
+      if (retryCount < MAX_RETRY) {
+        retryCount++;
+        appendLog(
+          `WebSocket 연결 끊김 — ${retryCount}초 후 재연결 시도 (${retryCount}/${MAX_RETRY})`,
+          'log-warn'
+        );
+        setTimeout(() => connectWebSocket(runId), retryCount * 1000);
+      } else {
+        appendLog('WebSocket 재연결 실패 — 백업은 서버에서 계속 실행 중입니다.', 'log-fail');
+        appendLog('잠시 후 이력 페이지에서 결과를 확인하세요.', 'log-warn');
+        resetUI();
+      }
     };
   }
 
+  // ------------------------------------------------------------------
+  // 로그 숨기기 (WebSocket 연결만 끊음 — 서버 백업은 계속 실행)
+  // ------------------------------------------------------------------
+  function stopBackup() {
+    isDone = true;
+    currentRunId = null;
+    if (ws) ws.close();
+    appendLog('── 로그 수신을 중단했습니다. 백업은 서버에서 계속 실행 중입니다. ──', 'log-warn');
+    appendLog('── 결과는 백업 이력 페이지에서 확인하세요. ──', 'log-warn');
+    setStatus('idle', '로그 숨김');
+    resetUI();
+  }
+
+  // ------------------------------------------------------------------
+  // UI 헬퍼
+  // ------------------------------------------------------------------
   function appendLog(msg, cls) {
     const logBox = document.getElementById('log-box');
     const p = document.createElement('p');
@@ -189,6 +289,21 @@
     p.textContent = msg;
     logBox.appendChild(p);
     logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log-box').innerHTML =
+      '<p class="log-line log-info">백업 시작 버튼을 눌러주세요.</p>';
+  }
+
+  function setStatus(dotState, text) {
+    document.getElementById('status-dot').className = `dot ${dotState}`;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  function resetUI() {
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('stop-btn').style.display = 'none';
   }
 </script>
 {% endblock %}
