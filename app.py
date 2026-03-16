@@ -36,10 +36,11 @@ async def lifespan(app: FastAPI):
 
     # --- startup ---
 
-    # 1. Redis 연결 확인
+    # 1. Redis 연결 확인 + 잔여 플래그 초기화
     try:
         r = aioredis.from_url(REDIS_URL)
         await r.ping()
+        await r.delete("nbt:is_running")   # 서버 재시작 시 잔여 플래그 제거
         await r.aclose()
         logger.info(f"Redis 연결 확인 완료: {REDIS_URL}")
     except Exception as e:
