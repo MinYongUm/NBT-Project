@@ -49,6 +49,26 @@ services:
     networks:
       - nbt-net
 
+  nbt-beat:                                              # 추가 (v4.4)
+    build: .
+    container_name: nbt-beat
+    restart: unless-stopped
+    command: celery -A core.celery_app beat --loglevel=info
+    env_file: .env
+    volumes:
+      - .:/app
+      - ~/nbt-backup:/data/backup
+    environment:
+      - NBT_BACKUP_ROOT=/data/backup
+      - TZ=Asia/Seoul
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - nbt-worker
+    networks:
+      - nbt-net
+
 networks:
   nbt-net:
     driver: bridge
