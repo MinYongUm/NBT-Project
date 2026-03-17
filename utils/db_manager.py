@@ -422,3 +422,111 @@ class DBManager:
 
         logger.info(f"settings.yaml 마이그레이션 완료: {count}대 추가")
         return count
+    
+    # ------------------------------------------------------------------
+    # Cleanup API (v4.4)
+    # ------------------------------------------------------------------
+
+    def delete_old_runs(self, retention_days: int) -> int:
+        """보존 기간이 지난 백업 실행 이력을 삭제합니다.
+
+        삭제 순서:
+            1. config_diffs  (run_id FK)
+            2. backup_results (run_id FK)
+            3. backup_runs   (PK)
+
+        FK 참조 순서대로 삭제하지 않으면 FOREIGN KEY 제약 위반 발생.
+
+        Args:
+            retention_days: 보존 기간 (일). 이 기간보다 오래된 run을 삭제.
+
+        Returns:
+            int: 삭제된 backup_runs 행 수
+        """
+        cutoff = (
+            datetime.now(KST) - timedelta(days=retention_days)
+        ).isoformat()
+
+        with self._lock:
+            # 삭제 대상 run_id 목록
+            target_ids = [
+                row[0] for row in self._conn.execute(
+                    "SELECT run_id FROM backup_runs WHERE run_at < ?",
+                    (cutoff,),
+                ).fetchall()
+            ]
+
+            if not target_ids:
+                logger.info(f"DB cleanup: 삭제 대상 없음 (기준일={cutoff[:10]})")
+                return 0
+
+            # 플레이스홀더 생성 (?, ?, ...)
+            placeholders = ",".join("?" * len(target_ids))
+
+            # FK 순서대로 삭제
+            self._conn.execute(
+                f"DELETE FROM config_diffs WHERE run_id IN ({placeholders})",
+                target_ids,
+            )
+            self._conn.execute(
+                f"DELETE FROM backup_results WHERE run_id IN ({placeholders})",
+                target_ids,
+            )
+            cur = self._conn.execute(
+                f"DELETE FROM backup_runs WHERE run_id IN ({placeholders})",
+                target_ids,
+            )
+            self._conn.commit()
+
+            deleted = cur.rowcount
+            logger.info(
+                f"DB cleanup 완료: {deleted}건 삭제 "
+                f"(보존 기간={retention_days}일, 기준일={cutoff[:10]})"
+            )
+            return deleted
+
+    def delete_old_backup_files(
+        self, backup_root: Path, retention_days: int
+    ) -> int:
+        """보존 기간이 지난 백업 폴더를 삭제합니다.
+
+        대상: {backup_root}/YYYYMMDD_HHMM/ 형식의 타임스탬프 폴더
+        기준: 폴더명의 날짜가 retention_days일 이전인 경우
+
+        DB 레코드와 무관하게 파일시스템 기준으로 삭제합니다.
+        (DB retention < file retention 권장 — 파일이 더 오래 보존)
+
+        Args:
+            backup_root: 백업 루트 경로 (NBT_BACKUP_ROOT)
+            retention_days: 보존 기간 (일)
+
+        Returns:
+            int: 삭제된 폴더 수
+        """
+        import shutil
+
+        cutoff = datetime.now(KST) - timedelta(days=retention_days)
+        deleted = 0
+
+        for folder in backup_root.iterdir():
+            # YYYYMMDD_HHMM 형식만 처리 (logs 폴더 등 제외)
+            if not folder.is_dir():
+                continue
+            try:
+                # 폴더명 파싱: 20260101_0200 → datetime
+                folder_dt = datetime.strptime(folder.name, "%Y%m%d_%H%M")
+                folder_dt = folder_dt.replace(tzinfo=KST)
+            except ValueError:
+                # 형식이 다른 폴더는 건너뜀
+                continue
+
+            if folder_dt < cutoff:
+                shutil.rmtree(folder)
+                deleted += 1
+                logger.info(f"백업 폴더 삭제: {folder.name}")
+
+        logger.info(
+            f"파일 cleanup 완료: {deleted}개 폴더 삭제 "
+            f"(보존 기간={retention_days}일)"
+        )
+        return deleted

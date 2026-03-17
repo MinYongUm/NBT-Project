@@ -100,3 +100,58 @@ def backup_task(
 
     finally:
         clear_running_flag()
+        
+@celery_app.task(
+    bind=True,
+    name="core.tasks.cleanup_task",
+    max_retries=0,
+    acks_late=True,
+)
+def cleanup_task(self: Task) -> dict:
+    """보존 기간이 지난 백업 이력 및 파일을 정리합니다.
+
+    환경변수:
+        NBT_DB_RETENTION_DAYS  : DB 레코드 보존 기간 (기본 90일)
+        NBT_FILE_RETENTION_DAYS: 백업 파일 보존 기간 (기본 365일)
+
+    Returns:
+        dict: {"deleted_runs": N, "deleted_folders": N}
+    """
+    from pathlib import Path
+    from utils.db_manager import DBManager
+
+    db_retention   = int(os.environ.get("NBT_DB_RETENTION_DAYS",   90))
+    file_retention = int(os.environ.get("NBT_FILE_RETENTION_DAYS", 365))
+    backup_root    = Path(os.environ.get("NBT_BACKUP_ROOT", "/data/backup"))
+
+    logger.info(
+        f"cleanup task 시작 | "
+        f"DB={db_retention}일 / 파일={file_retention}일"
+    )
+
+    db_path = backup_root / "nbt_history.db"
+    db = DBManager(db_path)
+    db.initialize()
+
+    try:
+        # DB 레코드 정리
+        deleted_runs = db.delete_old_runs(db_retention)
+
+        # 백업 파일 정리
+        deleted_folders = db.delete_old_backup_files(backup_root, file_retention)
+
+        logger.info(
+            f"cleanup task 완료 | "
+            f"DB {deleted_runs}건 / 폴더 {deleted_folders}개 삭제"
+        )
+        return {
+            "deleted_runs":    deleted_runs,
+            "deleted_folders": deleted_folders,
+        }
+
+    except Exception as e:
+        logger.error(f"cleanup task 예외 발생: {e}", exc_info=True)
+        raise
+
+    finally:
+        db.close()        
