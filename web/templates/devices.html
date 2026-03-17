@@ -76,6 +76,87 @@
     opacity: 1;
   }
 
+  /* ── 필터 바 ── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* 그룹 필터 버튼 그룹 */
+  .filter-group {
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-filter {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--mono);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-filter:hover {
+    color: var(--text);
+    border-color: #444;
+  }
+  .btn-filter.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* IP 검색 입력창 */
+  .search-input-wrap {
+    position: relative;
+    margin-left: auto;   /* 오른쪽 정렬 */
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  .search-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+    padding: 6px 12px 6px 30px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s, width 0.2s;
+  }
+  .search-input:focus {
+    border-color: var(--accent);
+    width: 240px;
+  }
+  .search-input::placeholder { color: #555; }
+
+  /* 결과 카운트 */
+  .result-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    min-height: 18px;  /* 텍스트 없을 때 레이아웃 흔들림 방지 */
+  }
+
   /* ── 장비 테이블 ── */
   .table-wrap {
     background: var(--surface);
@@ -120,6 +201,14 @@
     font-family: var(--mono);
     font-size: 12px;
     color: var(--text);
+  }
+
+  /* 검색어 하이라이트 */
+  .td-ip mark {
+    background: rgba(59,130,246,0.25);
+    color: var(--text);
+    border-radius: 2px;
+    padding: 0 1px;
   }
 
   .td-group {
@@ -296,6 +385,34 @@
 
   <!-- 장비 테이블 -->
   <div class="devices-main">
+
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+      <!-- 그룹 필터 버튼 -->
+      <div class="filter-group" id="filter-group">
+        <button class="btn-filter active" data-group="all"   onclick="setGroupFilter('all')">ALL</button>
+        <button class="btn-filter"        data-group="mgmt"  onclick="setGroupFilter('mgmt')">mgmt</button>
+        <button class="btn-filter"        data-group="nexus" onclick="setGroupFilter('nexus')">nexus</button>
+        <button class="btn-filter"        data-group="aci"   onclick="setGroupFilter('aci')">aci</button>
+      </div>
+
+      <!-- IP 검색 -->
+      <div class="search-input-wrap">
+        <span class="search-icon">&#128269;</span>
+        <input
+          class="search-input"
+          id="ip-search"
+          type="text"
+          placeholder="IP 검색..."
+          autocomplete="off"
+          oninput="applyFilter()"
+        />
+      </div>
+    </div>
+
+    <!-- 결과 카운트 -->
+    <div class="result-count" id="result-count"></div>
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -373,8 +490,10 @@
 
 {% block scripts %}
 <script>
-  let _mode = 'add';      // 'add' | 'edit'
-  let _editId = null;     // 수정 중인 장비 id
+  let _mode       = 'add';  // 'add' | 'edit'
+  let _editId     = null;   // 수정 중인 장비 id
+  let _allDevices = [];     // API에서 받은 전체 장비 목록 (필터링 원본)
+  let _activeGroup = 'all'; // 현재 선택된 그룹 필터
 
   // ------------------------------------------------------------------
   // 초기 로드
@@ -382,45 +501,103 @@
   document.addEventListener('DOMContentLoaded', loadDevices);
 
   async function loadDevices() {
-    const tbody = document.getElementById('device-tbody');
     try {
       const res = await fetch('/api/devices');
-      const devices = await res.json();
+      if (handle401(res)) return;
 
-      if (!devices.length) {
-        tbody.innerHTML = `
-          <tr><td colspan="5" class="empty-state">
-            등록된 장비가 없습니다. 장비 추가 버튼을 눌러 추가하세요.
-          </td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = devices.map(d => `
-        <tr data-id="${d.id}" onclick="handleRowClick(${d.id})">
-          <td><span class="td-group">${d.group_name}</span></td>
-          <td><span class="td-type">${d.device_type}</span></td>
-          <td><span class="td-ip">${d.ip}</span></td>
-          <td><span class="td-desc">${d.description || '—'}</span></td>
-          <td>
-            <div class="td-actions" onclick="event.stopPropagation()">
-              <button class="btn btn-edit"
-                      onclick="openEditPanel(${d.id},'${d.group_name}','${d.device_type}','${d.ip}','${(d.description||'').replace(/'/g,"\\'")}')">
-                수정
-              </button>
-              <button class="btn btn-danger-ghost"
-                      onclick="openDeactivate(${d.id},'${d.ip}')">
-                삭제
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      _allDevices = await res.json();
+      applyFilter();
 
     } catch (e) {
-      tbody.innerHTML = `
+      document.getElementById('device-tbody').innerHTML = `
         <tr><td colspan="5" class="empty-state">
           장비 목록을 불러오지 못했습니다.
         </td></tr>`;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 필터링 (그룹 + IP 검색 AND 조건)
+  // ------------------------------------------------------------------
+  function setGroupFilter(group) {
+    _activeGroup = group;
+
+    // 버튼 active 상태 전환
+    document.querySelectorAll('.btn-filter').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.group === group);
+    });
+
+    applyFilter();
+  }
+
+  function applyFilter() {
+    const keyword = document.getElementById('ip-search').value.trim().toLowerCase();
+
+    const filtered = _allDevices.filter(d => {
+      const groupMatch = _activeGroup === 'all' || d.group_name === _activeGroup;
+      const ipMatch    = keyword === '' || d.ip.toLowerCase().includes(keyword);
+      return groupMatch && ipMatch;
+    });
+
+    renderTable(filtered, keyword);
+    updateResultCount(filtered.length, _allDevices.length);
+  }
+
+  // ------------------------------------------------------------------
+  // 테이블 렌더링
+  // ------------------------------------------------------------------
+  function renderTable(devices, keyword = '') {
+    const tbody = document.getElementById('device-tbody');
+
+    if (!devices.length) {
+      const msg = _allDevices.length === 0
+        ? '등록된 장비가 없습니다. 장비 추가 버튼을 눌러 추가하세요.'
+        : '검색 조건에 맞는 장비가 없습니다.';
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${msg}</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = devices.map(d => `
+      <tr data-id="${d.id}" onclick="handleRowClick(${d.id})">
+        <td><span class="td-group">${d.group_name}</span></td>
+        <td><span class="td-type">${d.device_type}</span></td>
+        <td><span class="td-ip">${highlightIP(d.ip, keyword)}</span></td>
+        <td><span class="td-desc">${d.description || '—'}</span></td>
+        <td>
+          <div class="td-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-edit"
+                    onclick="openEditPanel(${d.id},'${d.group_name}','${d.device_type}','${d.ip}','${(d.description||'').replace(/'/g,"\\'")}')">
+              수정
+            </button>
+            <button class="btn btn-danger-ghost"
+                    onclick="openDeactivate(${d.id},'${d.ip}')">
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // 검색어 하이라이트 — XSS 방지를 위해 텍스트를 직접 조작
+  function highlightIP(ip, keyword) {
+    if (!keyword) return ip;
+    const idx = ip.toLowerCase().indexOf(keyword);
+    if (idx === -1) return ip;
+    return (
+      ip.slice(0, idx) +
+      `<mark>${ip.slice(idx, idx + keyword.length)}</mark>` +
+      ip.slice(idx + keyword.length)
+    );
+  }
+
+  // 결과 카운트 표시
+  function updateResultCount(filtered, total) {
+    const el = document.getElementById('result-count');
+    if (filtered === total) {
+      el.textContent = `총 ${total}대`;
+    } else {
+      el.textContent = `${filtered}대 / 전체 ${total}대`;
     }
   }
 
@@ -503,6 +680,8 @@
         body: JSON.stringify(body),
       });
 
+      if (handle401(res)) return;
+
       if (res.ok) {
         closePanel();
         await loadDevices();
@@ -522,6 +701,8 @@
     if (!_editId) return;
     try {
       const res = await fetch(`/api/devices/${_editId}`, { method: 'DELETE' });
+      if (handle401(res)) return;
+
       if (res.ok) {
         closePanel();
         await loadDevices();
