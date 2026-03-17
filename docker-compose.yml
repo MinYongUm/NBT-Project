@@ -9,10 +9,21 @@ services:
     networks:
       - nbt-net
 
+  nbt-ollama:                                            # 추가 (v5.0)
+    image: ollama/ollama
+    container_name: nbt-ollama
+    restart: unless-stopped
+    # 모델 파일 호스트에 영구 저장 — 컨테이너 재시작 시 재다운로드 방지
+    volumes:
+      - ~/nbt-ollama-models:/root/.ollama
+    # 외부 포트 노출 없음 — nbt-net 내부에서만 접근
+    networks:
+      - nbt-net
+
   nbt-engine:
     build: .
     container_name: nbt-engine
-    env_file: .env 
+    env_file: .env
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -22,11 +33,13 @@ services:
     environment:
       - NBT_BACKUP_ROOT=/data/backup
       - TZ=Asia/Seoul
-      # Celery 브로커/백엔드 주소 (컨테이너명으로 접근)
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - NBT_OLLAMA_URL=http://nbt-ollama:11434          # 추가 (v5.0)
+      - NBT_OLLAMA_MODEL=llama3.2:3b                    # 추가 (v5.0)
     depends_on:
       - redis
+      - nbt-ollama                                      # 추가 (v5.0)
     networks:
       - nbt-net
 
@@ -34,7 +47,6 @@ services:
     build: .
     container_name: nbt-worker
     restart: unless-stopped
-    # 웹 서버가 아닌 Celery 워커로 실행
     command: celery -A core.celery_app worker --loglevel=info --concurrency=4
     volumes:
       - .:/app
@@ -49,7 +61,7 @@ services:
     networks:
       - nbt-net
 
-  nbt-beat:                                              # 추가 (v4.4)
+  nbt-beat:
     build: .
     container_name: nbt-beat
     restart: unless-stopped

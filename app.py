@@ -20,7 +20,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.routers import backup, devices, diff, history, pages
+from api.routers import analyze, backup, devices, diff, history, pages
 from api.routers import auth as auth_router
 from core.auth import NotAuthenticatedException, get_current_user, get_current_user_api
 from utils.db_manager import DBManager
@@ -113,7 +113,7 @@ def _check_auth_env() -> None:
 
 app = FastAPI(
     title="NBT — Network Backup Tools",
-    version="4.3.0",
+    version="5.0.0",
     docs_url="/docs",
     lifespan=lifespan,
 )
@@ -170,5 +170,10 @@ app.include_router(
 )
 app.include_router(
     devices.router,
+    dependencies=[Depends(get_current_user_api)],
+)
+
+app.include_router(
+    analyze.router,
     dependencies=[Depends(get_current_user_api)],
 )
