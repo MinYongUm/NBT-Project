@@ -256,7 +256,7 @@ class DBManager:
     def get_recent_diffs(self, limit: int = 10) -> list:
         """최근 Config Diff 이력을 반환합니다."""
         rows = self._conn.execute(
-            """SELECT hostname, ip, diff_lines, previous_file,
+            """SELECT hostname, ip, diff_lines, diff_content, previous_file,
                       current_file, detected_at
                FROM config_diffs
                ORDER BY detected_at DESC
