@@ -55,6 +55,10 @@
     margin-bottom: 20px;
   }
 
+  .page-title {
+    margin-bottom: 24px;
+  }
+
   .limit-select {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -269,7 +273,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-title">Config Diff</div>
+<h1 class="page-title">Config Diff</h1>
 
 <div class="controls">
   <select class="limit-select" id="limit-select" onchange="loadDiffs()">

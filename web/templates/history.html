@@ -99,6 +99,10 @@
     margin-bottom: 20px;
   }
 
+  .page-title {
+    margin-bottom: 24px;
+  }
+
   .limit-select {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -281,7 +285,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-title">백업 이력</div>
+<h1 class="page-title">백업 이력</h1>
 
 <div class="controls">
   <select class="limit-select" id="limit-select" onchange="loadHistory()">
