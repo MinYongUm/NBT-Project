@@ -2,6 +2,7 @@
 NBT (Network Backup Tools) - Backup Router
 - POST /api/backup              : 백업 실행 시작 (Celery task 등록, 202)
 - WS   /api/backup/ws/{run_id}  : WebSocket 실시간 로그 스트림
+- GET  /api/backup/file         : 백업 파일 내용 조회
 
 중복 실행 방지:
     Redis nbt:is_running 플래그 (값: run_id 문자열)
@@ -43,6 +44,11 @@ def _get_db() -> DBManager:
     return db
 
 
+def _get_backup_root() -> Path:
+    """백업 루트 경로를 반환합니다."""
+    return Path(os.environ.get("NBT_BACKUP_ROOT", "/data/backup")).resolve()
+
+
 @router.post("", status_code=202)
 async def start_backup(group: Optional[str] = None):
     """백업을 Celery task로 등록합니다.
@@ -82,6 +88,56 @@ async def start_backup(group: Optional[str] = None):
 
     finally:
         await redis_client.aclose()
+
+
+@router.get("/file")
+async def get_backup_file(path: str):
+    """백업 파일 내용을 반환합니다.
+
+    보안 검증:
+        - 요청 경로를 resolve()로 절대 경로 변환 (경로 탈출 차단)
+        - NBT_BACKUP_ROOT 하위 경로인지 확인 (범위 외 접근 403)
+        - 파일 존재 여부 확인 (없으면 404)
+
+    Args:
+        path: 백업 파일 절대 경로 (backup_results.file_path 값)
+
+    Returns:
+        {"path": str, "filename": str, "content": str}
+    """
+    backup_root = _get_backup_root()
+
+    # 경로 탈출 공격 차단
+    # resolve()는 .., 심볼릭 링크 등을 모두 실제 경로로 변환
+    try:
+        target = Path(path).resolve()
+    except Exception:
+        raise HTTPException(status_code=400, detail="잘못된 파일 경로입니다.")
+
+    # NBT_BACKUP_ROOT 범위 외 접근 차단
+    # is_relative_to(): target이 backup_root 하위 경로인지 검사
+    if not target.is_relative_to(backup_root):
+        logger.warning(f"허용 범위 외 파일 접근 시도: {path}")
+        raise HTTPException(status_code=403, detail="접근이 허용되지 않은 경로입니다.")
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    if not target.is_file():
+        raise HTTPException(status_code=400, detail="파일이 아닙니다.")
+
+    try:
+        content = target.read_text(encoding="utf-8")
+    except OSError as e:
+        logger.error(f"파일 읽기 실패: {target}, {e}")
+        raise HTTPException(status_code=500, detail="파일을 읽을 수 없습니다.")
+
+    logger.info(f"백업 파일 조회: {target.name}")
+    return {
+        "path":     str(target),
+        "filename": target.name,
+        "content":  content,
+    }
 
 
 @router.websocket("/ws/{run_id}")

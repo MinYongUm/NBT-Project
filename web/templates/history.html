@@ -75,6 +75,23 @@
     color: var(--accent);
   }
 
+  /* 백업 파일 보기 버튼 */
+  .btn-view-file {
+    background: none;
+    border: 1px solid rgba(59,130,246,0.35);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-view-file:hover {
+    background: rgba(59,130,246,0.1);
+    border-color: var(--accent);
+  }
+
   .controls {
     display: flex;
     align-items: center;
@@ -99,6 +116,166 @@
     padding: 48px;
     color: var(--text-muted);
     font-size: 14px;
+  }
+
+  /* ── 파일 뷰어 모달 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90vw;
+    max-width: 960px;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .modal-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 80%;
+  }
+
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  /* 검색 바 */
+  .modal-search-wrap {
+    position: relative;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .modal-search {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 80px 7px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+  }
+  .modal-search:focus { border-color: var(--accent); }
+  .modal-search::placeholder { color: #555; }
+
+  .search-nav {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .search-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  .nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .nav-btn:hover { color: var(--text); border-color: #444; }
+
+  /* 파일 내용 */
+  .modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+  }
+
+  .file-content {
+    margin: 0;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* 검색 하이라이트 */
+  .file-content mark {
+    background: rgba(59,130,246,0.3);
+    color: var(--text);
+    border-radius: 2px;
+  }
+  .file-content mark.current {
+    background: rgba(250,204,21,0.5);  /* 현재 위치 강조 — 노란색 */
+    color: var(--text);
+  }
+
+  /* 로딩 / 에러 상태 */
+  .modal-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-family: var(--mono);
   }
 </style>
 {% endblock %}
@@ -134,13 +311,53 @@
   </table>
 </div>
 
+<!-- 파일 뷰어 모달 -->
+<div class="modal-overlay" id="file-modal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">—</span>
+      <div class="modal-actions">
+        <button class="modal-close" onclick="closeModal()">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- 인라인 검색 -->
+    <div class="modal-search-wrap">
+      <input
+        class="modal-search"
+        id="modal-search"
+        type="text"
+        placeholder="파일 내에서 검색... (Enter: 다음)"
+        oninput="onSearchInput()"
+        onkeydown="onSearchKeydown(event)"
+        autocomplete="off"
+      />
+      <div class="search-nav">
+        <span class="search-count" id="search-count"></span>
+        <button class="nav-btn" onclick="navigateSearch(-1)">&#9650;</button>
+        <button class="nav-btn" onclick="navigateSearch(1)">&#9660;</button>
+      </div>
+    </div>
+
+    <div class="modal-body" id="modal-body">
+      <div class="modal-status">불러오는 중...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
+  // ------------------------------------------------------------------
+  // 이력 로드
+  // ------------------------------------------------------------------
   async function loadHistory() {
     const limit = document.getElementById('limit-select').value;
     const tbody = document.getElementById('history-tbody');
 
     try {
-      const res  = await fetch(`/api/history?limit=${limit}`);
+      const res = await fetch(`/api/history?limit=${limit}`);
+      if (handle401(res)) return;
       const runs = await res.json();
 
       if (!runs.length) {
@@ -192,6 +409,7 @@
       if (content.textContent === '로딩 중...') {
         try {
           const res     = await fetch(`/api/history/${runId}`);
+          if (handle401(res)) return;
           const results = await res.json();
           content.innerHTML = `
             <table class="detail-table">
@@ -203,6 +421,7 @@
                   <th>상태</th>
                   <th>소요 시간</th>
                   <th>오류</th>
+                  <th>백업 파일</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,6 +437,15 @@
                     </td>
                     <td>${r.duration_sec ? r.duration_sec.toFixed(1) + 's' : '—'}</td>
                     <td>${r.error_msg || '—'}</td>
+                    <td>
+                      ${r.file_path
+                        ? `<button class="btn-view-file"
+                                   onclick="openFileModal('${r.file_path.replace(/'/g, "\\'")}', '${(r.hostname || r.ip).replace(/'/g, "\\'")}')">
+                             보기
+                           </button>`
+                        : '—'
+                      }
+                    </td>
                   </tr>`).join('')}
               </tbody>
             </table>`;
@@ -231,6 +459,158 @@
     }
   }
 
+  // ------------------------------------------------------------------
+  // 파일 뷰어 모달
+  // ------------------------------------------------------------------
+  let _rawContent   = '';   // 원본 파일 텍스트
+  let _matchIndexes = [];   // 검색 매칭 위치 인덱스 배열
+  let _currentMatch = -1;   // 현재 강조 중인 매칭 인덱스
+
+  async function openFileModal(filePath, hostname) {
+    // 모달 초기화
+    document.getElementById('modal-title').textContent = hostname;
+    document.getElementById('modal-search').value = '';
+    document.getElementById('search-count').textContent = '';
+    document.getElementById('modal-body').innerHTML = '<div class="modal-status">불러오는 중...</div>';
+    document.getElementById('file-modal').classList.add('open');
+
+    try {
+      const res = await fetch(`/api/backup/file?path=${encodeURIComponent(filePath)}`);
+      if (handle401(res)) { closeModal(); return; }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        document.getElementById('modal-body').innerHTML =
+          `<div class="modal-status">${data.detail || '파일을 불러올 수 없습니다.'}</div>`;
+        return;
+      }
+
+      const data = await res.json();
+      _rawContent = data.content;
+
+      // 파일명을 타이틀에 반영
+      document.getElementById('modal-title').textContent =
+        `${hostname}  ·  ${data.filename}`;
+
+      renderContent(_rawContent);
+
+    } catch (e) {
+      document.getElementById('modal-body').innerHTML =
+        '<div class="modal-status">파일을 불러올 수 없습니다.</div>';
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('file-modal').classList.remove('open');
+    _rawContent   = '';
+    _matchIndexes = [];
+    _currentMatch = -1;
+  }
+
+  // 모달 바깥 클릭 시 닫기
+  function handleOverlayClick(event) {
+    if (event.target === document.getElementById('file-modal')) {
+      closeModal();
+    }
+  }
+
+  // ESC 키로 모달 닫기
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ------------------------------------------------------------------
+  // 파일 내용 렌더링 (검색 하이라이트 포함)
+  // ------------------------------------------------------------------
+
+  // XSS 방지: 텍스트를 HTML 엔티티로 이스케이프
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderContent(text, keyword = '', currentIdx = -1) {
+    const body = document.getElementById('modal-body');
+
+    if (!keyword) {
+      body.innerHTML = `<pre class="file-content">${escapeHtml(text)}</pre>`;
+      return;
+    }
+
+    // 검색어 하이라이트
+    const escaped    = escapeHtml(text);
+    const escapedKw  = escapeHtml(keyword);
+    const regex      = new RegExp(escapedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+    let matchCount = 0;
+    const highlighted = escaped.replace(regex, match => {
+      const isCurrent = matchCount === currentIdx;
+      matchCount++;
+      return `<mark class="${isCurrent ? 'current' : ''}" data-idx="${matchCount - 1}">${match}</mark>`;
+    });
+
+    body.innerHTML = `<pre class="file-content">${highlighted}</pre>`;
+
+    // 현재 매칭 위치로 스크롤
+    if (currentIdx >= 0) {
+      const currentMark = body.querySelector(`mark[data-idx="${currentIdx}"]`);
+      if (currentMark) {
+        currentMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 인라인 검색
+  // ------------------------------------------------------------------
+  function onSearchInput() {
+    const keyword = document.getElementById('modal-search').value;
+    _currentMatch = keyword ? 0 : -1;
+    _matchIndexes = [];
+
+    if (keyword) {
+      // 매칭 수 계산
+      const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const matches = _rawContent.match(regex);
+      const total   = matches ? matches.length : 0;
+      _matchIndexes = Array.from({ length: total }, (_, i) => i);
+      _currentMatch = total > 0 ? 0 : -1;
+
+      document.getElementById('search-count').textContent =
+        total > 0 ? `1 / ${total}` : '없음';
+    } else {
+      document.getElementById('search-count').textContent = '';
+    }
+
+    renderContent(_rawContent, keyword, _currentMatch);
+  }
+
+  function onSearchKeydown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      navigateSearch(event.shiftKey ? -1 : 1);
+    }
+  }
+
+  function navigateSearch(direction) {
+    const total = _matchIndexes.length;
+    if (total === 0) return;
+
+    _currentMatch = (_currentMatch + direction + total) % total;
+
+    const keyword = document.getElementById('modal-search').value;
+    document.getElementById('search-count').textContent =
+      `${_currentMatch + 1} / ${total}`;
+
+    renderContent(_rawContent, keyword, _currentMatch);
+  }
+
+  // ------------------------------------------------------------------
+  // 초기 로드
+  // ------------------------------------------------------------------
   loadHistory();
 </script>
 {% endblock %}

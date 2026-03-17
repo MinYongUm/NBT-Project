@@ -245,7 +245,7 @@ class DBManager:
     def get_run_results(self, run_id: int) -> list:
         """특정 run의 장비별 결과를 반환합니다."""
         rows = self._conn.execute(
-            """SELECT hostname, ip, device_type, status, duration_sec, error_msg
+            """SELECT hostname, ip, device_type, status, file_path, duration_sec, error_msg
                FROM backup_results
                WHERE run_id = ?
                ORDER BY backed_up_at ASC""",
