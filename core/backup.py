@@ -1,6 +1,6 @@
 """
 NBT (Network Backup Tools) - Main Backup Module
-- Version: 4.2
+- Version: 4.4
 - Cisco IOS, IOS-XE, NX-OS 장비의 설정을 자동으로 백업하는 모듈
 
 Update History:
@@ -16,6 +16,7 @@ Update History:
 - ver 4.0          : FastAPI 연동, log_queue SSE 스트리밍
 - ver 4.1          : 장비 목록 DB 기반 전환 (settings.yaml → devices 테이블)
 - ver 4.2          : Celery task 연동, log_queue → log_callback, run_id 외부 주입
+- ver 4.4          : target_ips 필터 추가 (선택 장비 개별 백업)
 """
 
 import difflib
@@ -120,6 +121,7 @@ def _build_device_tasks(
     devices_from_db: list,
     commands: dict,
     group_filter: Optional[str] = None,
+    target_ips: Optional[list[str]] = None,  # 추가 (v4.4)
 ) -> list[DeviceTask]:
     """DB에서 로드한 장비 목록을 DeviceTask 리스트로 변환합니다.
 
@@ -127,6 +129,7 @@ def _build_device_tasks(
         devices_from_db: db.get_all_devices() 반환값
         commands: commands.yaml 파싱 결과
         group_filter: 특정 그룹만 실행 (mgmt/nexus/aci)
+        target_ips: 특정 IP만 실행. None이면 전체 또는 group_filter 범위.
     """
     tasks: list[DeviceTask] = []
 
@@ -134,6 +137,10 @@ def _build_device_tasks(
         group_name = device["group_name"]
 
         if group_filter and group_name.lower() != group_filter.lower():
+            continue
+
+        # target_ips가 지정된 경우 해당 IP만 통과 (v4.4)
+        if target_ips and device["ip"] not in target_ips:
             continue
 
         cmd_list = commands.get(group_name, [])
@@ -366,6 +373,7 @@ def run_backup(
     dry_run: bool = False,
     run_id: Optional[int] = None,
     log_callback: Optional[Callable[[str], None]] = None,
+    target_ips: Optional[list[str]] = None,  # 추가 (v4.4)
 ) -> dict:
     """전체 백업 작업을 실행합니다.
 
@@ -376,13 +384,13 @@ def run_backup(
                 None이면 내부에서 생성 (CLI 모드).
         log_callback: 로그 메시지 전달 콜백 (Celery → Redis pub/sub).
                       None이면 print로 출력 (CLI 모드).
+        target_ips: 특정 IP 목록만 백업. None이면 전체 또는 group_filter 범위. (v4.4)
 
     Returns:
         dict: {"total": N, "success": N, "fail": N, "diff_count": N}
     """
     config = load_config()
 
-    # 장비 목록을 DB에서 로드
     backup_folder = create_backup_folder()
     log_folder = create_log_folder()
     db_path = backup_folder.parent / "nbt_history.db"
@@ -392,9 +400,13 @@ def run_backup(
     devices_from_db = tmp_db.get_all_devices()
     tmp_db.close()
 
-    tasks = _build_device_tasks(devices_from_db, config.commands, group_filter)
+    tasks = _build_device_tasks(
+        devices_from_db,
+        config.commands,
+        group_filter,
+        target_ips,  # 추가 (v4.4)
+    )
 
-    # dry-run: 설정 검증만 수행
     if dry_run:
         _print_dry_run(tasks, config)
         return {"total": 0, "success": 0, "fail": 0, "diff_count": 0}
@@ -412,10 +424,9 @@ def run_backup(
 
     notifier = build_notifier(config.notify)
 
-    # run_id 외부 주입(Celery 모드) 또는 내부 생성(CLI 모드)
     if run_id is None:
         run_id = db.start_run()
-    
+
     results: list[BackupResult] = []
 
     logger.info(f"===== NBT 백업 시작 | run_id={run_id} =====")
@@ -442,7 +453,6 @@ def run_backup(
                     task = future_map[future]
                     logger.error(f"[{task.host}] Future 예외: {e}", exc_info=True)
 
-        # Diff 분석
         noise_patterns = config.diff.get("noise_patterns", [])
         diff_results: list[DiffResult] = []
 

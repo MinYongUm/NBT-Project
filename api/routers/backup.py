@@ -19,6 +19,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel  # 추가 (v4.4)
 
 from core.tasks import backup_task
 from utils.db_manager import DBManager
@@ -29,11 +30,27 @@ router = APIRouter(prefix="/api/backup", tags=["backup"])
 
 REDIS_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 
-# nbt:is_running TTL (초)
-# task_time_limit=360s + 60s 버퍼 = 420s
-# 워커가 강제 종료되어 finally가 실행되지 않아도 자동 만료
 _IS_RUNNING_TTL = 420
 
+
+# ------------------------------------------------------------------
+# Request schema (v4.4)
+# ------------------------------------------------------------------
+
+class BackupRequest(BaseModel):
+    """백업 실행 요청 바디.
+
+    Attributes:
+        group: 그룹 필터 (mgmt/nexus/aci). None이면 전체.
+        target_ips: 특정 장비 IP 목록. None 또는 빈 리스트이면 전체 또는 group 범위.
+    """
+    group: Optional[str] = None
+    target_ips: Optional[list[str]] = None
+
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
 
 def _get_db() -> DBManager:
     """DB 경로를 환경변수에서 결정하고 DBManager를 반환합니다."""
@@ -49,8 +66,12 @@ def _get_backup_root() -> Path:
     return Path(os.environ.get("NBT_BACKUP_ROOT", "/data/backup")).resolve()
 
 
+# ------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------
+
 @router.post("", status_code=202)
-async def start_backup(group: Optional[str] = None):
+async def start_backup(body: BackupRequest):  # 변경 (v4.4): 쿼리 파라미터 → 요청 바디
     """백업을 Celery task로 등록합니다.
 
     Returns:
@@ -59,7 +80,6 @@ async def start_backup(group: Optional[str] = None):
     """
     redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
     try:
-        # 중복 실행 확인
         is_running = await redis_client.get("nbt:is_running")
         if is_running:
             raise HTTPException(
@@ -67,23 +87,22 @@ async def start_backup(group: Optional[str] = None):
                 detail=f"이미 백업이 실행 중입니다. (run_id={is_running})",
             )
 
-        # run_id 생성
         db = _get_db()
         try:
             run_id = db.start_run()
         finally:
             db.close()
 
-        # 중복 실행 방지 플래그 설정
-        # - 값을 run_id로 저장: 잔존 시 어느 run이 블로킹 중인지 확인 가능
-        # - ex=420: task_time_limit(360s) + 60s 버퍼
-        #   워커 강제 종료(SIGKILL, OOM) 시 finally가 실행되지 않아도 자동 만료
         await redis_client.set("nbt:is_running", str(run_id), ex=_IS_RUNNING_TTL)
 
-        # Celery task 등록
-        backup_task.delay(run_id, group)
+        # target_ips 전달 (v4.4)
+        backup_task.delay(run_id, body.group, body.target_ips)
 
-        logger.info(f"백업 task 등록: run_id={run_id}, group={group or 'all'}")
+        logger.info(
+            f"백업 task 등록: run_id={run_id}, "
+            f"group={body.group or 'all'}, "
+            f"target_ips={body.target_ips or 'all'}"
+        )
         return {"run_id": run_id, "status": "queued"}
 
     finally:
@@ -107,15 +126,11 @@ async def get_backup_file(path: str):
     """
     backup_root = _get_backup_root()
 
-    # 경로 탈출 공격 차단
-    # resolve()는 .., 심볼릭 링크 등을 모두 실제 경로로 변환
     try:
         target = Path(path).resolve()
     except Exception:
         raise HTTPException(status_code=400, detail="잘못된 파일 경로입니다.")
 
-    # NBT_BACKUP_ROOT 범위 외 접근 차단
-    # is_relative_to(): target이 backup_root 하위 경로인지 검사
     if not target.is_relative_to(backup_root):
         logger.warning(f"허용 범위 외 파일 접근 시도: {path}")
         raise HTTPException(status_code=403, detail="접근이 허용되지 않은 경로입니다.")
@@ -157,7 +172,6 @@ async def backup_websocket(websocket: WebSocket, run_id: int):
         logger.info(f"WebSocket 연결: run_id={run_id}")
 
         async for message in pubsub.listen():
-            # Redis pubsub은 subscribe 확인 메시지도 전달 — type이 message인 것만 처리
             if message["type"] != "message":
                 continue
 
@@ -168,7 +182,6 @@ async def backup_websocket(websocket: WebSocket, run_id: int):
 
             await websocket.send_text(json.dumps(data))
 
-            # 백업 완료 신호 수신 시 연결 종료
             if data.get("level") == "DONE":
                 logger.info(f"백업 완료 수신, WebSocket 종료: run_id={run_id}")
                 break

@@ -4,15 +4,17 @@
 
 {% block head %}
 <style>
-  .backup-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .page-title {
     margin-bottom: 24px;
   }
 
-  .page-title {
-    margin-bottom: 24px;
+  /* 컨트롤 바 — 한 줄 레이아웃 */
+  .control-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
   }
 
   select {
@@ -25,6 +27,7 @@
     padding: 9px 14px;
     outline: none;
     cursor: pointer;
+    min-width: 130px;
   }
 
   select:focus { border-color: var(--accent); }
@@ -37,15 +40,11 @@
     border: none;
     cursor: pointer;
     transition: opacity 0.15s;
+    white-space: nowrap;
   }
 
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-  }
-
+  .btn-primary  { background: var(--accent); color: #fff; }
   .btn-primary:hover:not(:disabled) { opacity: 0.85; }
 
   .btn-secondary {
@@ -56,20 +55,161 @@
 
   .btn-secondary:hover:not(:disabled) { background: #333; color: var(--text); }
 
-  .log-box {
-    background: #0a0a0a;
-    border: 1px solid var(--border);
-    border-radius: 0 0 12px 12px;
-    padding: 20px 24px;
-    font-family: var(--mono);
+  .selected-info {
     font-size: 13px;
-    line-height: 1.8;
-    min-height: 300px;
-    max-height: 520px;
-    overflow-y: auto;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  .selected-info span { color: var(--accent); font-weight: 600; }
+
+  /* 장비 목록 박스 */
+  .device-box {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  /* 박스 최상단 — 전체 선택 체크박스 + 카운트 */
+  .device-box-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
     color: var(--text-muted);
   }
 
+  .device-box-header input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .device-box-header .count {
+    margin-left: auto;
+    font-family: var(--mono);
+  }
+
+  /* 컬럼 헤더 행 */
+  .device-col-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+    background: #111;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .device-col-header .col-chk      { width: 15px; flex-shrink: 0; }
+  .device-col-header .col-group    { width: 80px; flex-shrink: 0; text-align: center; }
+  .device-col-header .col-hostname { width: 160px; flex-shrink: 0; text-align: center; }
+  .device-col-header .col-ip       { width: 140px; flex-shrink: 0; text-align: center; }
+  .device-col-header .col-type     { width: 120px; flex-shrink: 0; text-align: center; }
+  .device-col-header .col-desc     { flex: 1; text-align: center; }
+
+  /* 장비 목록 — 고정 높이 + 내부 스크롤 */
+  .device-list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .device-list::-webkit-scrollbar { width: 6px; }
+  .device-list::-webkit-scrollbar-track { background: transparent; }
+  .device-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+  /* 장비 행 */
+  .device-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 13px;
+    font-family: var(--mono);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+
+  .device-item:last-child { border-bottom: none; }
+  .device-item:hover    { background: #161616; }
+  .device-item.selected { background: #0f1a2e; }
+
+  .device-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 15px;
+  }
+
+  /* 컬럼 헤더와 너비 동일하게 맞춤 */
+  .device-item .col-group    { width: 80px; flex-shrink: 0; text-align: center; }
+  .device-item .col-hostname { color: var(--text); width: 160px; flex-shrink: 0; text-align: center; }
+  .device-item .col-ip       { color: #888; width: 140px; flex-shrink: 0; text-align: center; }
+  .device-item .col-type     { color: #555; width: 120px; flex-shrink: 0; text-align: center; }
+  .device-item .col-desc     { color: #555; flex: 1; font-size: 12px; text-align: center; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+    text-transform: uppercase;  /* 추가 */
+  }
+
+  .badge-mgmt  { background: #1a2a1e; color: #4ade80; }
+  .badge-nexus { background: #1e1a2a; color: #a78bfa; }
+  .badge-aci   { background: #2a1e1a; color: #fb923c; }
+  .badge-other { background: #1e2a3a; color: var(--accent); }
+
+  .empty-msg {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* 상태 바 */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .dot.running {
+    background: var(--accent);
+    animation: pulse 1s infinite;
+  }
+
+  .dot.done  { background: var(--success); }
+  .dot.idle  { background: var(--border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* 로그 박스 */
   .log-header {
     display: flex;
     justify-content: space-between;
@@ -96,53 +236,41 @@
 
   .btn-clear:hover { background: #2a2a2a; color: var(--text); }
 
+  .log-box {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 0 0 12px 12px;
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+    min-height: 260px;
+    max-height: 420px;
+    overflow-y: auto;
+    color: var(--text-muted);
+  }
+
   .log-line { margin: 0; }
   .log-ok   { color: var(--success); }
   .log-fail { color: var(--danger); }
   .log-done { color: var(--accent); font-weight: 600; }
   .log-info { color: var(--text-muted); }
   .log-warn { color: #f59e0b; }
-
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-
-  .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--border);
-  }
-
-  .dot.running {
-    background: var(--accent);
-    animation: pulse 1s infinite;
-  }
-
-  .dot.done { background: var(--success); }
-  .dot.idle { background: var(--border); }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.3; }
-  }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1 class="page-title">백업 실행</h1>
 
-<div class="backup-controls">
-  <select id="group-select">
+<!-- 컨트롤 바 -->
+<div class="control-bar">
+  <select id="group-select" onchange="onGroupChange()">
     <option value="">전체 그룹</option>
-    <option value="mgmt">mgmt</option>
-    <option value="nexus">nexus</option>
-    <option value="aci">aci</option>
+    <option value="mgmt">MGMT</option>
+    <option value="nexus">Nexus</option>
+    <option value="aci">ACI</option>
   </select>
+
   <button class="btn btn-primary" id="run-btn" onclick="startBackup()">
     백업 시작
   </button>
@@ -150,19 +278,47 @@
           onclick="stopBackup()" style="display:none;">
     로그 숨기기
   </button>
+
+  <span class="selected-info" id="selected-info">선택 없음 — <span>전체 백업</span> 실행</span>
 </div>
 
+<!-- 장비 목록 박스 -->
+<div class="device-box">
+  <!-- 전체 선택 + 카운트 -->
+  <div class="device-box-header">
+    <input type="checkbox" id="check-all" onchange="toggleAll(this)">
+    <span>장비 선택</span>
+    <span style="color:#444;">— 선택 없으면 전체 백업</span>
+    <span class="count" id="device-count">0대</span>
+  </div>
+  <!-- 컬럼 헤더 -->
+  <div class="device-col-header">
+    <span class="col-chk"></span>
+    <span class="col-group">그룹</span>
+    <span class="col-hostname">Host</span>
+    <span class="col-ip">IP 주소</span>
+    <span class="col-type">장비 타입</span>
+    <span class="col-desc">설명</span>
+  </div>
+  <!-- 장비 목록 (스크롤 영역) -->
+  <div class="device-list" id="device-list">
+    <div class="empty-msg">장비 목록을 불러오는 중...</div>
+  </div>
+</div>
+
+<!-- 상태 바 -->
 <div class="status-bar">
   <div class="dot idle" id="status-dot"></div>
   <span id="status-text">대기 중</span>
 </div>
 
+<!-- 로그 박스 -->
 <div class="log-header">
   <span>실시간 로그</span>
   <button class="btn-clear" onclick="clearLog()">지우기</button>
 </div>
 <div class="log-box" id="log-box">
-  <p class="log-line log-info">백업 시작 버튼을 눌러주세요.</p>
+  <p class="log-line log-info">장비를 선택하거나 선택 없이 전체 백업을 실행하세요.</p>
 </div>
 {% endblock %}
 
@@ -174,11 +330,126 @@
   let retryCount = 0;
   const MAX_RETRY = 5;
 
+  let _allDevices = [];
+
+  // ------------------------------------------------------------------
+  // 초기화
+  // ------------------------------------------------------------------
+  async function loadDevices() {
+    try {
+      const res = await fetch('/api/devices');
+      if (handle401(res)) return;
+      if (!res.ok) {
+        renderError('장비 목록을 불러오지 못했습니다.');
+        return;
+      }
+      _allDevices = await res.json();
+      renderList(_allDevices);
+    } catch (err) {
+      renderError(`오류: ${err}`);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 그룹 select 변경
+  // ------------------------------------------------------------------
+  function onGroupChange() {
+    const group = document.getElementById('group-select').value;
+    const filtered = group
+      ? _allDevices.filter(d => d.group_name === group)
+      : _allDevices;
+    renderList(filtered);
+    updateSelectedInfo();
+  }
+
+  // ------------------------------------------------------------------
+  // 장비 목록 렌더링
+  // ------------------------------------------------------------------
+  function badgeClass(group) {
+    const map = { mgmt: 'badge-mgmt', nexus: 'badge-nexus', aci: 'badge-aci' };
+    return map[group] || 'badge-other';
+  }
+
+  function renderList(devices) {
+    const container = document.getElementById('device-list');
+    const countEl   = document.getElementById('device-count');
+    const checkAll  = document.getElementById('check-all');
+
+    checkAll.checked = false;
+
+    if (devices.length === 0) {
+      container.innerHTML = '<div class="empty-msg">해당 그룹에 장비가 없습니다.</div>';
+      countEl.textContent = '0대';
+      return;
+    }
+
+    container.innerHTML = devices.map(d => `
+      <div class="device-item" onclick="toggleItem(this)">
+        <input type="checkbox" class="device-check"
+               value="${d.ip}" onchange="updateSelectedInfo()" onclick="event.stopPropagation()">
+        <span class="col-group">
+          <span class="badge ${badgeClass(d.group_name)}">${d.group_name}</span>
+        </span>
+        <span class="col-hostname">${d.last_hostname || '–'}</span>
+        <span class="col-ip">${d.ip}</span>
+        <span class="col-type">${d.device_type}</span>
+        <span class="col-desc">${d.description || '–'}</span>
+      </div>
+    `).join('');
+
+    countEl.textContent = `${devices.length}대`;
+    updateSelectedInfo();
+  }
+
+  function renderError(msg) {
+    document.getElementById('device-list').innerHTML =
+      `<div class="empty-msg" style="color:var(--danger);">${msg}</div>`;
+  }
+
+  // ------------------------------------------------------------------
+  // 체크박스
+  // ------------------------------------------------------------------
+  function toggleItem(row) {
+    const cb = row.querySelector('.device-check');
+    cb.checked = !cb.checked;
+    row.classList.toggle('selected', cb.checked);
+    updateSelectedInfo();
+  }
+
+  function toggleAll(master) {
+    document.querySelectorAll('.device-check').forEach(cb => {
+      cb.checked = master.checked;
+      cb.closest('.device-item').classList.toggle('selected', master.checked);
+    });
+    updateSelectedInfo();
+  }
+
+  function updateSelectedInfo() {
+    const checked = getSelectedIps();
+    const total   = document.querySelectorAll('.device-check').length;
+    const el      = document.getElementById('selected-info');
+
+    document.getElementById('check-all').checked =
+      total > 0 && checked.length === total;
+
+    el.innerHTML = checked.length === 0
+      ? '선택 없음 — <span>전체 백업</span> 실행'
+      : `<span>${checked.length}대</span> 선택됨`;
+  }
+
+  function getSelectedIps() {
+    return Array.from(
+      document.querySelectorAll('.device-check:checked')
+    ).map(cb => cb.value);
+  }
+
   // ------------------------------------------------------------------
   // 백업 시작
   // ------------------------------------------------------------------
   async function startBackup() {
-    const group = document.getElementById('group-select').value;
+    const selectedIps = getSelectedIps();
+    const group       = document.getElementById('group-select').value || null;
+    const targetIps   = selectedIps.length > 0 ? selectedIps : null;
 
     isDone = false;
     retryCount = 0;
@@ -190,8 +461,13 @@
     clearLog();
 
     try {
-      const url = group ? `/api/backup?group=${group}` : '/api/backup';
-      const res = await fetch(url, { method: 'POST' });
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group: group, target_ips: targetIps }),
+      });
+
+      if (handle401(res)) { resetUI(); return; }
 
       if (res.status === 409) {
         appendLog('이미 백업이 실행 중입니다. 완료 후 다시 시도하세요.', 'log-warn');
@@ -207,7 +483,11 @@
 
       const data = await res.json();
       currentRunId = data.run_id;
-      appendLog(`백업 작업 등록 완료 | run_id=${currentRunId}`, 'log-info');
+
+      const scope = targetIps
+        ? `${targetIps.length}대 선택 백업`
+        : (group ? `${group} 그룹 전체 백업` : '전체 백업');
+      appendLog(`백업 작업 등록 완료 | run_id=${currentRunId} | ${scope}`, 'log-info');
       connectWebSocket(currentRunId);
 
     } catch (err) {
@@ -217,13 +497,11 @@
   }
 
   // ------------------------------------------------------------------
-  // WebSocket 연결 (재연결 로직 포함)
+  // WebSocket
   // ------------------------------------------------------------------
   function connectWebSocket(runId) {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://${location.host}/api/backup/ws/${runId}`;
-
-    ws = new WebSocket(wsUrl);
+    ws = new WebSocket(`${protocol}://${location.host}/api/backup/ws/${runId}`);
 
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
@@ -248,13 +526,10 @@
       }
     };
 
-    ws.onerror = () => {
-      appendLog('WebSocket 오류 발생', 'log-warn');
-    };
+    ws.onerror = () => appendLog('WebSocket 오류 발생', 'log-warn');
 
     ws.onclose = () => {
       if (isDone || currentRunId === null) return;
-
       if (retryCount < MAX_RETRY) {
         retryCount++;
         appendLog(
@@ -264,14 +539,14 @@
         setTimeout(() => connectWebSocket(runId), retryCount * 1000);
       } else {
         appendLog('WebSocket 재연결 실패 — 백업은 서버에서 계속 실행 중입니다.', 'log-fail');
-        appendLog('잠시 후 이력 페이지에서 결과를 확인하세요.', 'log-warn');
+        appendLog('잠시 후 이력 페이지에서 확인하세요.', 'log-warn');
         resetUI();
       }
     };
   }
 
   // ------------------------------------------------------------------
-  // 로그 숨기기 (WebSocket 연결만 끊음 — 서버 백업은 계속 실행)
+  // 로그 숨기기
   // ------------------------------------------------------------------
   function stopBackup() {
     isDone = true;
@@ -297,11 +572,11 @@
 
   function clearLog() {
     document.getElementById('log-box').innerHTML =
-      '<p class="log-line log-info">백업 시작 버튼을 눌러주세요.</p>';
+      '<p class="log-line log-info">장비를 선택하거나 선택 없이 전체 백업을 실행하세요.</p>';
   }
 
-  function setStatus(dotState, text) {
-    document.getElementById('status-dot').className = `dot ${dotState}`;
+  function setStatus(state, text) {
+    document.getElementById('status-dot').className = `dot ${state}`;
     document.getElementById('status-text').textContent = text;
   }
 
@@ -309,5 +584,8 @@
     document.getElementById('run-btn').disabled = false;
     document.getElementById('stop-btn').style.display = 'none';
   }
+
+  // 진입 시 로드
+  loadDevices();
 </script>
 {% endblock %}

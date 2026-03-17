@@ -270,15 +270,37 @@ class DBManager:
     # ------------------------------------------------------------------
 
     def get_all_devices(self, include_inactive: bool = False) -> list:
-        """장비 목록을 반환합니다."""
-        if include_inactive:
-            rows = self._conn.execute(
-                "SELECT * FROM devices ORDER BY group_name, ip"
-            ).fetchall()
-        else:
-            rows = self._conn.execute(
-                "SELECT * FROM devices WHERE is_active = 1 ORDER BY group_name, ip"
-            ).fetchall()
+        """장비 목록을 반환합니다.
+
+        backup_results에서 IP 기준 가장 최근 SUCCESS hostname을 함께 반환합니다.
+        아직 백업 이력이 없는 장비는 last_hostname = None.
+        """
+        where = "" if include_inactive else "WHERE d.is_active = 1"
+        rows = self._conn.execute(
+            f"""
+            SELECT
+                d.id,
+                d.group_name,
+                d.device_type,
+                d.ip,
+                d.description,
+                d.is_active,
+                d.created_at,
+                d.updated_at,
+                (
+                    SELECT hostname
+                    FROM backup_results
+                    WHERE ip = d.ip
+                      AND status = 'SUCCESS'
+                      AND hostname IS NOT NULL
+                    ORDER BY backed_up_at DESC
+                    LIMIT 1
+                ) AS last_hostname
+            FROM devices d
+            {where}
+            ORDER BY d.group_name, d.ip
+            """
+        ).fetchall()
         return rows
 
     def get_device(self, device_id: int) -> Optional[sqlite3.Row]:

@@ -63,17 +63,22 @@ def backup_task(
     self: Task,
     run_id: int,
     group_filter: Optional[str] = None,
+    target_ips: Optional[list[str]] = None,  # 추가 (v4.4)
 ) -> dict:
     """백업 실행 Celery task.
 
     Args:
         run_id: DB에 이미 생성된 backup_runs.run_id
         group_filter: 특정 그룹만 실행 (mgmt/nexus/aci). None이면 전체.
+        target_ips: 특정 IP 목록만 백업. None이면 전체 또는 group_filter 범위. (v4.4)
 
     Returns:
         dict: {"total": N, "success": N, "fail": N, "diff_count": N}
     """
-    logger.info(f"백업 task 시작 | run_id={run_id} group_filter={group_filter}")
+    logger.info(
+        f"백업 task 시작 | run_id={run_id} "
+        f"group_filter={group_filter} target_ips={target_ips}"
+    )
     publish_log(run_id, f"백업 시작 | run_id={run_id}", level="INFO")
 
     try:
@@ -81,6 +86,7 @@ def backup_task(
             group_filter=group_filter,
             run_id=run_id,
             log_callback=lambda msg: publish_log(run_id, msg),
+            target_ips=target_ips,  # 추가 (v4.4)
         )
         publish_log(run_id, "[DONE]", level="DONE")
         return result
