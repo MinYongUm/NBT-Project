@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block title %}AI 분석{% endblock %}
 
 {% block head %}
@@ -11,7 +12,44 @@
     align-items: start;
   }
 
-  /* ── 왼쪽 패널 — 파일 선택 ─────────────────────────────── */
+  /* ── 탭 ─────────────────────────────────────────────────── */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+
+  .tab-btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid transparent;
+    border-bottom: none;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+    position: relative;
+    bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.04); }
+
+  .tab-btn.active {
+    color: var(--accent);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── 왼쪽 패널 ──────────────────────────────────────────── */
   .panel-left { display: flex; flex-direction: column; gap: 16px; }
 
   .section-title {
@@ -25,13 +63,9 @@
 
   .form-group { display: flex; flex-direction: column; gap: 6px; }
 
-  .form-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-  }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
 
-  .form-select, .form-input {
+  .form-select {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -44,10 +78,7 @@
     transition: border-color .15s;
   }
 
-  .form-select:focus, .form-input:focus {
-    border-color: var(--accent);
-  }
-
+  .form-select:focus { border-color: var(--accent); }
   .form-select option { background: #1a1a1a; }
 
   /* 파일 목록 */
@@ -71,23 +102,13 @@
     background: var(--bg);
   }
 
-  .file-item:hover {
-    border-color: var(--accent);
-    background: rgba(59,130,246,.05);
-  }
-
-  .file-item.selected {
-    border-color: var(--accent);
-    background: rgba(59,130,246,.08);
-  }
+  .file-item:hover  { border-color: var(--accent); background: rgba(59,130,246,.05); }
+  .file-item.selected { border-color: var(--accent); background: rgba(59,130,246,.08); }
 
   .file-item svg {
     width: 14px; height: 14px;
-    stroke: var(--text-muted);
-    fill: none;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke: var(--text-muted); fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     flex-shrink: 0;
   }
 
@@ -97,29 +118,21 @@
     font-family: var(--mono);
     font-size: 11px;
     color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
   .file-item.selected .file-name { color: var(--accent); }
 
   .file-empty {
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-    padding: 20px 0;
+    font-size: 12px; color: var(--text-muted);
+    text-align: center; padding: 20px 0;
   }
 
   /* 인덱싱 상태 */
   .index-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    font-weight: 500;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 500;
   }
 
   .index-status.idle    { background: rgba(107,114,128,.1); color: var(--text-muted); }
@@ -128,14 +141,52 @@
   .index-status.loading { background: rgba(59,130,246,.1); color: var(--accent); }
 
   .index-status svg {
-    width: 13px; height: 13px;
-    stroke: currentColor; fill: none;
-    stroke-width: 2;
-    stroke-linecap: round; stroke-linejoin: round;
-    flex-shrink: 0;
+    width: 13px; height: 13px; stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
   }
 
-  /* ── 오른쪽 패널 — 분석 ─────────────────────────────────── */
+  /* ── 비교 분석 — 장비 체크박스 목록 ────────────────────── */
+  .compare-device-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 280px; overflow-y: auto;
+  }
+
+  .compare-device-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    transition: border-color .15s;
+  }
+
+  .compare-device-item:has(input:checked) {
+    border-color: var(--accent);
+    background: rgba(59,130,246,.05);
+  }
+
+  .compare-device-item input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer; flex-shrink: 0;
+  }
+
+  .compare-device-info { flex: 1; overflow: hidden; }
+
+  .compare-device-name {
+    font-size: 13px; font-weight: 500;
+    color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .compare-device-status {
+    font-size: 11px; margin-top: 2px;
+  }
+
+  .compare-device-status.indexed   { color: var(--success); }
+  .compare-device-status.unindexed { color: var(--text-muted); }
+
+  /* ── 오른쪽 패널 ────────────────────────────────────────── */
   .panel-right { display: flex; flex-direction: column; gap: 16px; }
 
   .question-area {
@@ -145,105 +196,85 @@
     color: var(--text);
     font-family: var(--sans);
     font-size: 13px;
-    padding: 12px;
-    width: 100%;
-    min-height: 80px;
-    resize: vertical;
-    outline: none;
-    transition: border-color .15s;
-    line-height: 1.6;
+    padding: 12px; width: 100%; min-height: 80px;
+    resize: vertical; outline: none;
+    transition: border-color .15s; line-height: 1.6;
   }
 
   .question-area:focus { border-color: var(--accent); }
   .question-area::placeholder { color: var(--text-muted); }
 
-  /* 분석 결과 */
   .answer-box {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 16px;
-    min-height: 240px;
-    font-size: 13px;
-    line-height: 1.8;
-    color: var(--text);
-    white-space: pre-wrap;
-    word-break: break-word;
+    padding: 16px; min-height: 240px;
+    font-size: 13px; line-height: 1.8;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
   }
 
   .answer-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 240px;
-    gap: 10px;
-    color: var(--text-muted);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 240px; gap: 10px; color: var(--text-muted);
   }
 
   .answer-empty svg {
     width: 36px; height: 36px;
     stroke: var(--border); fill: none;
-    stroke-width: 1.5;
-    stroke-linecap: round; stroke-linejoin: round;
+    stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
   }
 
   .answer-empty p { font-size: 13px; }
 
-  /* 메타 정보 */
   .answer-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    display: flex; align-items: center;
+    gap: 8px; flex-wrap: wrap;
   }
 
-  /* 로딩 애니메이션 */
-  .spinner {
-    width: 14px; height: 14px;
-    border: 2px solid rgba(59,130,246,.3);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-    flex-shrink: 0;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* 타이핑 커서 효과 */
   .typing::after {
     content: '▌';
     animation: blink .8s step-end infinite;
-    color: var(--accent);
-    margin-left: 2px;
+    color: var(--accent); margin-left: 2px;
   }
 
-  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes blink  { 50% { opacity: 0; } }
+  @keyframes spin   { to  { transform: rotate(360deg); } }
 
-  /* 스크롤바 */
-  .file-list::-webkit-scrollbar { width: 4px; }
-  .file-list::-webkit-scrollbar-track { background: transparent; }
-  .file-list::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 2px;
+  .file-list::-webkit-scrollbar,
+  .compare-device-list::-webkit-scrollbar { width: 4px; }
+  .file-list::-webkit-scrollbar-track,
+  .compare-device-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb,
+  .compare-device-list::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 2px;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="margin-bottom:24px;">
+<div style="margin-bottom:20px;">
   <h1 style="font-size:20px;font-weight:700;margin-bottom:4px;">AI 분석</h1>
   <p style="font-size:13px;color:var(--text-muted);">
     백업 파일을 인덱싱하고 자연어로 Config를 분석합니다.
   </p>
 </div>
 
+<!-- 탭 -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="single">단일 분석</button>
+  <button class="tab-btn"        data-tab="compare">비교 분석</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 단일 분석 탭                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-single">
 <div class="analyze-wrap">
 
-  <!-- ── 왼쪽: 파일 선택 + 인덱싱 ── -->
+  <!-- 왼쪽 -->
   <div class="panel-left">
 
-    <!-- 장비 선택 -->
     <div class="card">
       <p class="section-title">장비 선택</p>
       <div class="form-group">
@@ -254,7 +285,6 @@
       </div>
     </div>
 
-    <!-- 백업 파일 선택 -->
     <div class="card">
       <p class="section-title">백업 파일</p>
       <div class="file-list" id="fileList">
@@ -262,7 +292,6 @@
       </div>
     </div>
 
-    <!-- 인덱싱 -->
     <div class="card">
       <p class="section-title">인덱싱</p>
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;">
@@ -270,47 +299,35 @@
         인덱싱 없이도 분석 가능합니다 (전체 파일 전달).
       </p>
       <div class="index-status idle" id="indexStatus">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10"/>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
+          <line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span id="indexStatusText">파일을 선택하세요.</span>
       </div>
       <button class="btn btn-ghost" id="indexBtn"
               style="width:100%;margin-top:10px;justify-content:center;" disabled>
-        <svg viewBox="0 0 24 24">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-        </svg>
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         인덱싱
       </button>
     </div>
 
   </div>
 
-  <!-- ── 오른쪽: 질문 + 답변 ── -->
+  <!-- 오른쪽 -->
   <div class="panel-right">
-
-    <!-- 질문 입력 -->
     <div class="card">
       <p class="section-title">질문</p>
-      <textarea
-        class="question-area"
-        id="questionInput"
-        placeholder="예) OSPF neighbor 설정을 확인해줘. / 인터페이스 중 down 상태인 것이 있어? / ACL 설정 내용을 요약해줘."
-      ></textarea>
+      <textarea class="question-area" id="questionInput"
+        placeholder="예) OSPF neighbor 설정을 확인해줘. / 인터페이스 중 down 상태인 것이 있어?"></textarea>
       <div style="display:flex;justify-content:flex-end;margin-top:10px;">
         <button class="btn btn-primary" id="analyzeBtn" disabled>
-          <svg viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-          </svg>
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/></svg>
           분석
         </button>
       </div>
     </div>
 
-    <!-- 분석 결과 -->
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <p class="section-title" style="margin-bottom:0;">분석 결과</p>
@@ -320,27 +337,103 @@
           <span class="badge badge-gray" id="metaChunks"></span>
         </div>
       </div>
-
       <div id="answerWrap">
         <div class="answer-empty" id="answerEmpty">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/>
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
+            <line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <p>질문을 입력하고 분석 버튼을 누르세요.</p>
         </div>
         <div class="answer-box" id="answerBox" style="display:none;"></div>
       </div>
     </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 비교 분석 탭                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-compare">
+<div class="analyze-wrap">
+
+  <!-- 왼쪽 -->
+  <div class="panel-left">
+
+    <div class="card">
+      <p class="section-title">장비 선택</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.6;">
+        비교할 장비를 2대 이상 선택하세요.<br>
+        인덱싱된 장비만 비교에 포함됩니다.
+      </p>
+      <div class="compare-device-list" id="compareDeviceList">
+        <div class="file-empty">장비 목록을 불러오는 중...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">인덱싱 현황</p>
+      <div id="compareIndexStatus"
+           style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+        장비를 선택하면 인덱싱 현황이 표시됩니다.
+      </div>
+    </div>
 
   </div>
+
+  <!-- 오른쪽 -->
+  <div class="panel-right">
+    <div class="card">
+      <p class="section-title">비교 질문</p>
+      <textarea class="question-area" id="compareQuestionInput"
+        placeholder="예) OSPF neighbor 설정을 비교해줘. / 라우팅 설정 차이를 분석해줘. / ACL 설정이 다른 부분을 찾아줘."></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <button class="btn btn-primary" id="compareBtn" disabled>
+          <svg viewBox="0 0 24 24">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6"  y1="20" x2="6"  y2="14"/>
+          </svg>
+          비교 분석
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <p class="section-title" style="margin-bottom:0;">비교 결과</p>
+        <div class="answer-meta" id="compareAnswerMeta" style="display:none;">
+          <span class="badge badge-gray"    id="cMetaModel"></span>
+          <span class="badge badge-blue"    id="cMetaDevices"></span>
+          <span class="badge badge-gray"    id="cMetaChunks"></span>
+        </div>
+      </div>
+      <div id="compareAnswerWrap">
+        <div class="answer-empty" id="compareAnswerEmpty">
+          <svg viewBox="0 0 24 24">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6"  y1="20" x2="6"  y2="14"/>
+          </svg>
+          <p>장비를 선택하고 비교 분석 버튼을 누르세요.</p>
+        </div>
+        <div class="answer-box" id="compareAnswerBox" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // ── 상태 ────────────────────────────────────────────────────
+  // ── 공통 상태 ────────────────────────────────────────────────
+  let allDevices       = [];   // [{ip, hostname, last_hostname}]
+  let indexedSet       = new Set();  // 인덱싱 완료된 hostname
+
+  // ── 단일 분석 상태 ───────────────────────────────────────────
   let selectedFilePath = null;
   let selectedHostname = null;
 
@@ -348,33 +441,114 @@
   const fileList       = document.getElementById('fileList');
   const indexBtn       = document.getElementById('indexBtn');
   const indexStatus    = document.getElementById('indexStatus');
-  const indexStatusTxt = document.getElementById('indexStatusText');
   const questionInput  = document.getElementById('questionInput');
   const analyzeBtn     = document.getElementById('analyzeBtn');
   const answerEmpty    = document.getElementById('answerEmpty');
   const answerBox      = document.getElementById('answerBox');
   const answerMeta     = document.getElementById('answerMeta');
 
+  // ── 비교 분석 상태 ───────────────────────────────────────────
+  const compareDeviceList    = document.getElementById('compareDeviceList');
+  const compareIndexStatus   = document.getElementById('compareIndexStatus');
+  const compareQuestionInput = document.getElementById('compareQuestionInput');
+  const compareBtn           = document.getElementById('compareBtn');
+  const compareAnswerEmpty   = document.getElementById('compareAnswerEmpty');
+  const compareAnswerBox     = document.getElementById('compareAnswerBox');
+  const compareAnswerMeta    = document.getElementById('compareAnswerMeta');
+
+  // ── 탭 전환 ──────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById(`tab-${this.dataset.tab}`).classList.add('active');
+    });
+  });
+
   // ── 초기화 — 장비 목록 로드 ─────────────────────────────────
   async function loadDevices() {
     try {
       const res = await fetch('/api/devices');
       if (handle401(res)) return;
-      const devices = await res.json();
-      devices.forEach(d => {
-        const hn = d.last_hostname || d.hostname || d.ip;
+      allDevices = await res.json();
+
+      // 단일 분석 드롭다운
+      allDevices.forEach(d => {
+        const hn  = d.last_hostname || d.hostname || d.ip;
         const opt = document.createElement('option');
-        opt.value = d.ip;
-        opt.textContent = `${hn}  (${d.ip})`;
+        opt.value            = d.ip;
+        opt.textContent      = `${hn}  (${d.ip})`;
         opt.dataset.hostname = hn;
         deviceSelect.appendChild(opt);
       });
+
+      // 비교 분석 체크박스 목록
+      renderCompareDeviceList();
+
     } catch (e) {
       console.error('장비 목록 로드 실패:', e);
     }
   }
 
-  // ── 장비 선택 시 — 백업 파일 목록 로드 ──────────────────────
+  // ── 비교 분석 — 장비 체크박스 렌더링 ────────────────────────
+  function renderCompareDeviceList() {
+    compareDeviceList.innerHTML = '';
+
+    if (allDevices.length === 0) {
+      compareDeviceList.innerHTML = '<div class="file-empty">등록된 장비가 없습니다.</div>';
+      return;
+    }
+
+    allDevices.forEach(d => {
+      const hn   = d.last_hostname || d.hostname || d.ip;
+      const isIndexed = indexedSet.has(hn);
+
+      const item = document.createElement('div');
+      item.className = 'compare-device-item';
+      item.innerHTML = `
+        <input type="checkbox" value="${d.ip}" data-hostname="${hn}" id="chk_${d.ip}">
+        <div class="compare-device-info">
+          <div class="compare-device-name">${hn}  (${d.ip})</div>
+          <div class="compare-device-status ${isIndexed ? 'indexed' : 'unindexed'}">
+            ${isIndexed ? '● 인덱싱 완료' : '○ 미인덱싱'}
+          </div>
+        </div>`;
+
+      item.querySelector('input').addEventListener('change', updateCompareBtn);
+      compareDeviceList.appendChild(item);
+    });
+  }
+
+  // ── 비교 분석 — 버튼 활성화 조건 ────────────────────────────
+  function updateCompareBtn() {
+    const checked = getCheckedDevices();
+    compareBtn.disabled =
+      checked.length < 2 || !compareQuestionInput.value.trim();
+
+    // 인덱싱 현황 업데이트
+    if (checked.length === 0) {
+      compareIndexStatus.textContent = '장비를 선택하면 인덱싱 현황이 표시됩니다.';
+      return;
+    }
+
+    const lines = checked.map(d => {
+      const ok = indexedSet.has(d.hostname);
+      return `<span style="color:${ok ? 'var(--success)' : 'var(--text-muted)'}">
+        ${ok ? '●' : '○'} ${d.hostname}  —  ${ok ? '인덱싱 완료' : '미인덱싱 (비교 제외)'}
+      </span>`;
+    });
+    compareIndexStatus.innerHTML = lines.join('<br>');
+  }
+
+  function getCheckedDevices() {
+    return [...document.querySelectorAll('#compareDeviceList input:checked')]
+      .map(el => ({ ip: el.value, hostname: el.dataset.hostname }));
+  }
+
+  compareQuestionInput.addEventListener('input', updateCompareBtn);
+
+  // ── 단일 분석 — 장비 선택 ───────────────────────────────────
   deviceSelect.addEventListener('change', async function () {
     const ip       = this.value;
     const hostname = this.options[this.selectedIndex]?.dataset.hostname || '';
@@ -406,10 +580,7 @@
         if (!Array.isArray(results)) continue;
         for (const result of results) {
           if (result.ip === ip && result.status === 'SUCCESS' && result.file_path) {
-            files.push({
-              file_path: result.file_path,
-              hostname:  result.hostname || hostname,
-            });
+            files.push({ file_path: result.file_path, hostname: result.hostname || hostname });
           }
         }
       }
@@ -419,15 +590,12 @@
         return;
       }
 
-      // 중복 제거 (file_path 기준)
       const seen   = new Set();
       const unique = files.filter(f => {
         if (seen.has(f.file_path)) return false;
-        seen.add(f.file_path);
-        return true;
+        seen.add(f.file_path); return true;
       });
 
-      // 수집된 결과에서 실제 hostname으로 드롭다운 업데이트
       const realHostname = unique[0]?.hostname || hostname;
       const selOpt = deviceSelect.options[deviceSelect.selectedIndex];
       if (selOpt) {
@@ -442,14 +610,11 @@
         item.dataset.path     = f.file_path;
         item.dataset.hostname = f.hostname;
 
-        // file_path의 부모 폴더명이 타임스탬프 (예: 20260318_1231)
         const parts       = f.file_path.split('/');
         const folder      = parts.length >= 2 ? parts[parts.length - 2] : '';
-        const fname       = parts[parts.length - 1];        // R23.txt
-        const basename    = fname.replace(/\.[^.]+$/, ''); // R23
-        const displayName = folder
-          ? `${folder}_${basename}.txt`
-          : fname;
+        const fname       = parts[parts.length - 1];
+        const basename    = fname.replace(/\.[^.]+$/, '');
+        const displayName = folder ? `${folder}_${basename}.txt` : fname;
 
         item.innerHTML = `
           <svg viewBox="0 0 24 24">
@@ -470,7 +635,7 @@
     }
   });
 
-  // ── 파일 선택 ────────────────────────────────────────────────
+  // ── 단일 분석 — 파일 선택 ───────────────────────────────────
   function selectFile(el, filePath, hostname) {
     document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
     el.classList.add('selected');
@@ -481,7 +646,7 @@
     updateAnalyzeBtn();
   }
 
-  // ── 인덱싱 ──────────────────────────────────────────────────
+  // ── 단일 분석 — 인덱싱 ──────────────────────────────────────
   indexBtn.addEventListener('click', async function () {
     if (!selectedFilePath) return;
 
@@ -504,6 +669,10 @@
       if (res.ok) {
         const data = await res.json();
         setIndexStatus('success', `인덱싱 완료 — ${data.chunks}개 청크 저장됨`);
+        // 인덱싱 완료 목록에 추가 후 비교 분석 목록 갱신
+        indexedSet.add(selectedHostname);
+        renderCompareDeviceList();
+        updateCompareBtn();
       } else {
         const err = await res.json();
         setIndexStatus('error', `인덱싱 실패: ${err.detail || res.status}`);
@@ -516,12 +685,12 @@
     }
   });
 
-  // ── 분석 ────────────────────────────────────────────────────
+  // ── 단일 분석 — 분석 ────────────────────────────────────────
   analyzeBtn.addEventListener('click', async function () {
     const question = questionInput.value.trim();
     if (!question || !selectedFilePath) return;
 
-    analyzeBtn.disabled = true;
+    analyzeBtn.disabled       = true;
     answerEmpty.style.display = 'none';
     answerBox.style.display   = 'block';
     answerBox.className       = 'answer-box typing';
@@ -532,36 +701,24 @@
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_path: selectedFilePath,
-          question:  question,
-        }),
+        body: JSON.stringify({ file_path: selectedFilePath, question }),
       });
 
       if (handle401(res)) return;
 
       if (res.ok) {
         const data = await res.json();
-
-        // 타이핑 효과
         answerBox.className = 'answer-box typing';
         await typeText(answerBox, data.answer);
         answerBox.className = 'answer-box';
 
-        // 메타 정보 표시
         document.getElementById('metaModel').textContent  = data.model;
         document.getElementById('metaChunks').textContent =
           data.rag_used ? `청크 ${data.chunks}개` : '전체 파일';
         const ragBadge = document.getElementById('metaRag');
-        if (data.rag_used) {
-          ragBadge.className   = 'badge badge-success';
-          ragBadge.textContent = 'RAG';
-        } else {
-          ragBadge.className   = 'badge badge-gray';
-          ragBadge.textContent = 'Fallback';
-        }
+        ragBadge.className   = data.rag_used ? 'badge badge-success' : 'badge badge-gray';
+        ragBadge.textContent = data.rag_used ? 'RAG' : 'Fallback';
         answerMeta.style.display = 'flex';
-
       } else {
         const err = await res.json();
         answerBox.className   = 'answer-box';
@@ -575,13 +732,62 @@
     }
   });
 
-  // ── 질문 입력 시 분석 버튼 활성화 ───────────────────────────
-  questionInput.addEventListener('input', updateAnalyzeBtn);
+  // ── 비교 분석 — 분석 ────────────────────────────────────────
+  compareBtn.addEventListener('click', async function () {
+    const question = compareQuestionInput.value.trim();
+    const checked  = getCheckedDevices();
+    if (!question || checked.length < 2) return;
+
+    compareBtn.disabled              = true;
+    compareAnswerEmpty.style.display = 'none';
+    compareAnswerBox.style.display   = 'block';
+    compareAnswerBox.className       = 'answer-box typing';
+    compareAnswerBox.textContent     = '';
+    compareAnswerMeta.style.display  = 'none';
+
+    try {
+      const res = await fetch('/api/analyze/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          devices:  checked.map(d => ({ hostname: d.hostname, file_path: '' })),
+          question,
+        }),
+      });
+
+      if (handle401(res)) return;
+
+      if (res.ok) {
+        const data = await res.json();
+        compareAnswerBox.className = 'answer-box typing';
+        await typeText(compareAnswerBox, data.answer);
+        compareAnswerBox.className = 'answer-box';
+
+        document.getElementById('cMetaModel').textContent   = data.model;
+        document.getElementById('cMetaDevices').textContent =
+          `장비 ${data.devices.length}대`;
+        document.getElementById('cMetaChunks').textContent  =
+          `청크 ${data.chunks}개`;
+        compareAnswerMeta.style.display = 'flex';
+      } else {
+        const err = await res.json();
+        compareAnswerBox.className   = 'answer-box';
+        compareAnswerBox.textContent = `오류: ${err.detail || res.status}`;
+      }
+    } catch (e) {
+      compareAnswerBox.className   = 'answer-box';
+      compareAnswerBox.textContent = `오류: ${e.message}`;
+    } finally {
+      compareBtn.disabled = false;
+      updateCompareBtn();
+    }
+  });
 
   // ── 헬퍼 ────────────────────────────────────────────────────
+  questionInput.addEventListener('input', updateAnalyzeBtn);
+
   function updateAnalyzeBtn() {
-    analyzeBtn.disabled =
-      !selectedFilePath || !questionInput.value.trim();
+    analyzeBtn.disabled = !selectedFilePath || !questionInput.value.trim();
   }
 
   function resetIndexStatus() {
@@ -598,16 +804,13 @@
       error:   '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
       loading: '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>',
     };
-    indexStatus.innerHTML = `
-      <svg viewBox="0 0 24 24">${icons[type]}</svg>
-      <span>${text}</span>`;
+    indexStatus.innerHTML = `<svg viewBox="0 0 24 24">${icons[type]}</svg><span>${text}</span>`;
   }
 
   async function typeText(el, text) {
     const delay = ms => new Promise(r => setTimeout(r, ms));
-    const chunkSize = 4;
-    for (let i = 0; i < text.length; i += chunkSize) {
-      el.textContent += text.slice(i, i + chunkSize);
+    for (let i = 0; i < text.length; i += 4) {
+      el.textContent += text.slice(i, i + 4);
       await delay(12);
     }
   }
