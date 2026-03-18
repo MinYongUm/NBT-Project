@@ -3,7 +3,7 @@
 
 ## 1. 프로젝트 개요
 
-Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 Web 기반 자동화 도구입니다.
+Python과 Netmiko를 활용하여 Cisco IOS, IOS-XE, NX-OS 등 다종의 네트워크 장비 설정을 자동으로 백업하고 로그를 기록하는 Web 기반 자동화 도구입니다.<br>
 수동 백업으로 인한 휴먼 에러를 방지하고, 작업 이력을 체계적으로 관리하여 운영 안정성을 높이는 것을 목표로 합니다.
 
 - 언어/프레임워크: Python 3.11, Netmiko, FastAPI, Jinja2, Celery
@@ -200,3 +200,8 @@ v5.x  : AI
   v5.1  - RAG 파이프라인 (ChromaDB)
   v5.2  - MCP 서버 (Claude Desktop 연동)
 ```
+
+## 8. 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다.<br>
+자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
