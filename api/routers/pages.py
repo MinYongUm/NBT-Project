@@ -5,6 +5,8 @@ NBT (Network Backup Tools) - Page Router
 v4.3 변경:
     - 모든 응답에 Cache-Control: no-store 추가
       로그아웃 후 뒤로 가기 시 캐시된 페이지가 표시되는 현상 방지
+v5.1 변경:
+    - /analyze 페이지 추가
 """
 
 from fastapi import APIRouter, Request
@@ -58,6 +60,15 @@ def diff_page(request: Request):
 def devices_page(request: Request):
     response = templates.TemplateResponse(
         "devices.html", {"request": request, "active": "devices"}
+    )
+    response.headers.update(_NO_CACHE)
+    return response
+
+
+@router.get("/analyze", response_class=HTMLResponse)
+def analyze_page(request: Request):                          # 추가 (v5.1)
+    response = templates.TemplateResponse(
+        "analyze.html", {"request": request, "active": "analyze"}
     )
     response.headers.update(_NO_CACHE)
     return response
