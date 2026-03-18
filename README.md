@@ -89,7 +89,8 @@ NBT-Project/
 
 - Docker, docker-compose
 - EVE-NG 또는 실제 운영 장비 (Cisco IOS 기준)
-- RAM 10GB 이상 권장 (Ollama 모델 + ChromaDB 운영)
+- Full 버전: RAM 10GB 이상 권장 (Ollama 모델 + ChromaDB 운영)
+- Lite 버전 (v4.4-stable, AI 기능 제외): RAM 4GB 이상
 
 ### 4-2. 초기 설정
 ```bash
@@ -211,7 +212,7 @@ v4.x  : Web 전환
 v5.x  : AI
   v5.0   - Ollama 로컬 LLM Config 분석 API
   v5.1   - RAG 파이프라인 (ChromaDB + 임베딩) + 다중 장비 비교 분석   <- 현재 버전
-  v5.2   - MCP 서버 (Claude Desktop 연동)
+  v5.2   - 자동 분석 리포트 (백업 완료 후 AI 분석 → 메일 발송)
 ```
 
 ## 8. 라이선스
