@@ -26,3 +26,6 @@ websockets>=12.0
 # 로그인 인증 (v4.3)
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+
+# ChromaDB
+chromadb>=0.4.0
