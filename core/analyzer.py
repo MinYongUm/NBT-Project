@@ -6,6 +6,7 @@ NBT (Network Backup Tools) - Config Analyzer
 Update History:
 - ver 5.0 (2026/03/17): 신규 작성 — Ollama /api/generate 연동
 - ver 5.1 (2026/03/18): analyze_with_context() 추가 — RAG 파이프라인 연동
+- ver 5.1.1 (2026/03/18): analyze_compare() 추가 — 다중 장비 비교 분석
 """
 
 import json
@@ -44,6 +45,19 @@ Rules:
 - Use technical network terminology appropriately
 - Structure your answer clearly with findings and recommendations
 - Be concise but thorough"""
+
+_COMPARE_SYSTEM_PROMPT = """You are a senior network engineer assistant specializing in Cisco network devices.
+Compare the provided configurations from multiple network devices and answer the user's question.
+
+Rules:
+- MUST respond ONLY in Korean (한국어로만 답변할 것)
+- 영어, 일본어, 중국어 등 다른 언어 사용 절대 금지
+- 기술 용어는 영어 그대로 사용 가능 (예: interface, OSPF, BGP, VLAN)
+- 장비별로 설정 차이를 명확히 구분하여 설명할 것
+- 문제가 되는 설정 차이는 반드시 지적할 것
+- Base your analysis strictly on the provided configurations
+- If something is not present in a device's config, clearly state that
+- Structure your answer with per-device findings and a comparison summary"""
 
 
 # ------------------------------------------------------------------
@@ -158,6 +172,57 @@ def analyze_with_context(
     }
 
 
+def analyze_compare(
+    device_chunks: dict[str, list[str]],
+    question: str,
+) -> dict:
+    """다중 장비 RAG 청크를 비교 분석합니다.
+
+    Args:
+        device_chunks: 장비별 청크 딕셔너리
+                       {"R26": ["router ospf...", ...], "R24": [...]}
+        question:      사용자 질문 (한국어 가능)
+
+    Returns:
+        dict: {
+            "answer":   str,
+            "model":    str,
+            "devices":  list[str],  # 비교한 장비 목록
+            "chunks":   int,        # 전체 참조 청크 수
+            "rag_used": bool,       # 항상 True
+        }
+
+    Raises:
+        ValueError:   질문이 비어있거나 장비가 1대 이하인 경우
+        RuntimeError: Ollama API 호출 실패
+    """
+    if not question or not question.strip():
+        raise ValueError("질문을 입력해 주세요.")
+    if len(device_chunks) < 2:
+        raise ValueError("비교 분석은 최소 2대 이상의 장비가 필요합니다.")
+
+    devices   = list(device_chunks.keys())
+    total_chunks = sum(len(v) for v in device_chunks.values())
+
+    logger.info(
+        f"Config 비교 분석 시작 | 장비: {devices} | "
+        f"총 청크: {total_chunks}개 | 모델: {_OLLAMA_MODEL}"
+    )
+
+    prompt = _build_prompt_compare(device_chunks, question)
+    answer = _call_ollama(prompt)
+
+    logger.info(f"Config 비교 분석 완료 | 장비: {devices}")
+
+    return {
+        "answer":   answer,
+        "model":    _OLLAMA_MODEL,
+        "devices":  devices,
+        "chunks":   total_chunks,
+        "rag_used": True,
+    }
+
+
 def health_check() -> dict:
     """Ollama 서버 상태를 확인합니다.
 
@@ -211,6 +276,27 @@ def _build_prompt_rag(chunks: list[str], question: str) -> str:
 {question}
 
 ## Answer (in Korean)"""
+
+
+def _build_prompt_compare(
+    device_chunks: dict[str, list[str]],
+    question: str,
+) -> str:
+    """비교 분석용 프롬프트 — 장비별 청크를 구조화합니다."""
+    sections = ""
+    for device, chunks in device_chunks.items():
+        sections += f"\n## Device: {device}\n"
+        for i, chunk in enumerate(chunks, 1):
+            sections += f"\n### Section {i}\n```\n{chunk}\n```\n"
+
+    return f"""{_COMPARE_SYSTEM_PROMPT}
+
+{sections}
+
+## Question
+{question}
+
+## Comparison Analysis (in Korean)"""
 
 
 def _call_ollama(prompt: str) -> str:
