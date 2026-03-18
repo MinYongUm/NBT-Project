@@ -4,8 +4,6 @@ services:
     image: redis:7-alpine
     container_name: nbt-redis
     restart: unless-stopped
-    # 작업 큐 전용 — 외부 포트 노출 불필요
-    # 컨테이너 내부 네트워크(nbt-net)에서만 접근
     networks:
       - nbt-net
 
@@ -13,10 +11,8 @@ services:
     image: ollama/ollama
     container_name: nbt-ollama
     restart: unless-stopped
-    # 모델 파일 호스트에 영구 저장 — 컨테이너 재시작 시 재다운로드 방지
     volumes:
       - ~/nbt-ollama-models:/root/.ollama
-    # 외부 포트 노출 없음 — nbt-net 내부에서만 접근
     networks:
       - nbt-net
 
@@ -24,10 +20,8 @@ services:
     image: chromadb/chroma
     container_name: nbt-chroma
     restart: unless-stopped
-    # 인덱스 파일 호스트에 영구 저장 — 컨테이너 재시작 시 인덱스 유지
     volumes:
       - ~/nbt-chroma-data:/chroma/chroma
-    # 외부 포트 노출 없음 — nbt-net 내부에서만 접근
     networks:
       - nbt-net
 
@@ -47,7 +41,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - NBT_OLLAMA_URL=http://nbt-ollama:11434          # 추가 (v5.0)
-      - NBT_OLLAMA_MODEL=llama3.2:3b                    # 추가 (v5.0)
+      - NBT_OLLAMA_MODEL=qwen2.5:7b                     # 수정 (v5.1)
       - NBT_CHROMA_URL=http://nbt-chroma:8000           # 추가 (v5.1)
       - NBT_EMBED_MODEL=nomic-embed-text                # 추가 (v5.1)
     depends_on:
