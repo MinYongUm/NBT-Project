@@ -156,20 +156,7 @@ http://서버IP:8000
 백업 결과는 Ubuntu 호스트 `~/nbt-backup/YYYYMMDD_HHMM/` 폴더에 저장됩니다.
 
 ## 5. 아키텍처
-```
-[브라우저]
-    ↕ HTTP + HttpOnly 쿠키 (JWT)
-[nbt-engine: FastAPI]  → 인증 검증 + 작업 등록 + AI 분석/비교 요청
-    ↕                          ↕                    ↕
-[redis]                [nbt-ollama: Ollama]   [nbt-chroma: ChromaDB]
-  작업 큐 + pub/sub      qwen2.5:7b             벡터 인덱스 저장
-    ↕                   nomic-embed-text        코사인 유사도 검색
-[nbt-worker: Celery]  → 실제 SSH 백업 + cleanup 실행
-    ↑
-[nbt-beat: Celery Beat]  → 매일 02:00 백업 / 03:00 cleanup
-    ↕
-[네트워크 장비]
-```
+![nbt 시스템 아키텍처](docs/260318_nbt-architecture.png)
 
 ## 6. 보안 주의사항
 
