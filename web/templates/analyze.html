@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+{% block title %}AI 분석{% endblock %}
+
+{% block head %}
+<style>
+  /* ── 레이아웃 ───────────────────────────────────────────── */
+  .analyze-wrap {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ── 왼쪽 패널 — 파일 선택 ─────────────────────────────── */
+  .panel-left { display: flex; flex-direction: column; gap: 16px; }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .form-select, .form-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 8px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .form-select:focus, .form-input:focus {
+    border-color: var(--accent);
+  }
+
+  .form-select option { background: #1a1a1a; }
+
+  /* 파일 목록 */
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: var(--bg);
+  }
+
+  .file-item:hover {
+    border-color: var(--accent);
+    background: rgba(59,130,246,.05);
+  }
+
+  .file-item.selected {
+    border-color: var(--accent);
+    background: rgba(59,130,246,.08);
+  }
+
+  .file-item svg {
+    width: 14px; height: 14px;
+    stroke: var(--text-muted);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  .file-item.selected svg { stroke: var(--accent); }
+
+  .file-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-item.selected .file-name { color: var(--accent); }
+
+  .file-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  /* 인덱싱 상태 */
+  .index-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .index-status.idle    { background: rgba(107,114,128,.1); color: var(--text-muted); }
+  .index-status.success { background: rgba(34,197,94,.1);  color: var(--success); }
+  .index-status.error   { background: rgba(239,68,68,.1);  color: var(--danger); }
+  .index-status.loading { background: rgba(59,130,246,.1); color: var(--accent); }
+
+  .index-status svg {
+    width: 13px; height: 13px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  /* ── 오른쪽 패널 — 분석 ─────────────────────────────────── */
+  .panel-right { display: flex; flex-direction: column; gap: 16px; }
+
+  .question-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 12px;
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s;
+    line-height: 1.6;
+  }
+
+  .question-area:focus { border-color: var(--accent); }
+  .question-area::placeholder { color: var(--text-muted); }
+
+  /* 분석 결과 */
+  .answer-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    min-height: 240px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .answer-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 240px;
+    gap: 10px;
+    color: var(--text-muted);
+  }
+
+  .answer-empty svg {
+    width: 36px; height: 36px;
+    stroke: var(--border); fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .answer-empty p { font-size: 13px; }
+
+  /* 메타 정보 */
+  .answer-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* 로딩 애니메이션 */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(59,130,246,.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 타이핑 커서 효과 */
+  .typing::after {
+    content: '▌';
+    animation: blink .8s step-end infinite;
+    color: var(--accent);
+    margin-left: 2px;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 스크롤바 */
+  .file-list::-webkit-scrollbar { width: 4px; }
+  .file-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px;">
+  <h1 style="font-size:20px;font-weight:700;margin-bottom:4px;">AI 분석</h1>
+  <p style="font-size:13px;color:var(--text-muted);">
+    백업 파일을 인덱싱하고 자연어로 Config를 분석합니다.
+  </p>
+</div>
+
+<div class="analyze-wrap">
+
+  <!-- ── 왼쪽: 파일 선택 + 인덱싱 ── -->
+  <div class="panel-left">
+
+    <!-- 장비 선택 -->
+    <div class="card">
+      <p class="section-title">장비 선택</p>
+      <div class="form-group">
+        <label class="form-label" for="deviceSelect">장비</label>
+        <select class="form-select" id="deviceSelect">
+          <option value="">-- 장비를 선택하세요 --</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 백업 파일 선택 -->
+    <div class="card">
+      <p class="section-title">백업 파일</p>
+      <div class="file-list" id="fileList">
+        <div class="file-empty">장비를 먼저 선택하세요.</div>
+      </div>
+    </div>
+
+    <!-- 인덱싱 -->
+    <div class="card">
+      <p class="section-title">인덱싱</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;">
+        파일을 선택 후 인덱싱하면 RAG 모드로 분석합니다.<br>
+        인덱싱 없이도 분석 가능합니다 (전체 파일 전달).
+      </p>
+      <div class="index-status idle" id="indexStatus">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span id="indexStatusText">파일을 선택하세요.</span>
+      </div>
+      <button class="btn btn-ghost" id="indexBtn"
+              style="width:100%;margin-top:10px;justify-content:center;" disabled>
+        <svg viewBox="0 0 24 24">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        인덱싱
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ── 오른쪽: 질문 + 답변 ── -->
+  <div class="panel-right">
+
+    <!-- 질문 입력 -->
+    <div class="card">
+      <p class="section-title">질문</p>
+      <textarea
+        class="question-area"
+        id="questionInput"
+        placeholder="예) OSPF neighbor 설정을 확인해줘. / 인터페이스 중 down 상태인 것이 있어? / ACL 설정 내용을 요약해줘."
+      ></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <button class="btn btn-primary" id="analyzeBtn" disabled>
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          분석
+        </button>
+      </div>
+    </div>
+
+    <!-- 분석 결과 -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <p class="section-title" style="margin-bottom:0;">분석 결과</p>
+        <div class="answer-meta" id="answerMeta" style="display:none;">
+          <span class="badge badge-gray" id="metaModel"></span>
+          <span class="badge" id="metaRag"></span>
+          <span class="badge badge-gray" id="metaChunks"></span>
+        </div>
+      </div>
+
+      <div id="answerWrap">
+        <div class="answer-empty" id="answerEmpty">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <p>질문을 입력하고 분석 버튼을 누르세요.</p>
+        </div>
+        <div class="answer-box" id="answerBox" style="display:none;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── 상태 ────────────────────────────────────────────────────
+  let selectedFilePath = null;
+  let selectedHostname = null;
+
+  const deviceSelect   = document.getElementById('deviceSelect');
+  const fileList       = document.getElementById('fileList');
+  const indexBtn       = document.getElementById('indexBtn');
+  const indexStatus    = document.getElementById('indexStatus');
+  const indexStatusTxt = document.getElementById('indexStatusText');
+  const questionInput  = document.getElementById('questionInput');
+  const analyzeBtn     = document.getElementById('analyzeBtn');
+  const answerEmpty    = document.getElementById('answerEmpty');
+  const answerBox      = document.getElementById('answerBox');
+  const answerMeta     = document.getElementById('answerMeta');
+
+  // ── 초기화 — 장비 목록 로드 ─────────────────────────────────
+  async function loadDevices() {
+    try {
+      const res = await fetch('/api/devices');
+      if (handle401(res)) return;
+      const devices = await res.json();
+      devices.forEach(d => {
+        const hn = d.last_hostname || d.hostname || d.ip;
+        const opt = document.createElement('option');
+        opt.value = d.ip;
+        opt.textContent = `${hn}  (${d.ip})`;
+        opt.dataset.hostname = hn;
+        deviceSelect.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('장비 목록 로드 실패:', e);
+    }
+  }
+
+  // ── 장비 선택 시 — 백업 파일 목록 로드 ──────────────────────
+  deviceSelect.addEventListener('change', async function () {
+    const ip       = this.value;
+    const hostname = this.options[this.selectedIndex]?.dataset.hostname || '';
+
+    selectedFilePath = null;
+    selectedHostname = null;
+    resetIndexStatus();
+    updateAnalyzeBtn();
+
+    if (!ip) {
+      fileList.innerHTML = '<div class="file-empty">장비를 먼저 선택하세요.</div>';
+      indexBtn.disabled  = true;
+      return;
+    }
+
+    fileList.innerHTML = '<div class="file-empty">파일 목록 불러오는 중...</div>';
+
+    try {
+      const res  = await fetch('/api/history?limit=20');
+      if (handle401(res)) return;
+      const runs = await res.json();
+
+      const files = [];
+      for (const run of runs) {
+        const r2 = await fetch(`/api/history/${run.run_id}`);
+        if (handle401(r2)) return;
+        if (!r2.ok) continue;
+        const results = await r2.json();
+        if (!Array.isArray(results)) continue;
+        for (const result of results) {
+          if (result.ip === ip && result.status === 'SUCCESS' && result.file_path) {
+            files.push({
+              file_path: result.file_path,
+              hostname:  result.hostname || hostname,
+            });
+          }
+        }
+      }
+
+      if (files.length === 0) {
+        fileList.innerHTML = '<div class="file-empty">백업 파일이 없습니다.</div>';
+        return;
+      }
+
+      // 중복 제거 (file_path 기준)
+      const seen   = new Set();
+      const unique = files.filter(f => {
+        if (seen.has(f.file_path)) return false;
+        seen.add(f.file_path);
+        return true;
+      });
+
+      // 수집된 결과에서 실제 hostname으로 드롭다운 업데이트
+      const realHostname = unique[0]?.hostname || hostname;
+      const selOpt = deviceSelect.options[deviceSelect.selectedIndex];
+      if (selOpt) {
+        selOpt.textContent      = `${realHostname}  (${ip})`;
+        selOpt.dataset.hostname = realHostname;
+      }
+
+      fileList.innerHTML = '';
+      unique.forEach(f => {
+        const item = document.createElement('div');
+        item.className        = 'file-item';
+        item.dataset.path     = f.file_path;
+        item.dataset.hostname = f.hostname;
+
+        // file_path의 부모 폴더명이 타임스탬프 (예: 20260318_1231)
+        const parts       = f.file_path.split('/');
+        const folder      = parts.length >= 2 ? parts[parts.length - 2] : '';
+        const fname       = parts[parts.length - 1];        // R23.txt
+        const basename    = fname.replace(/\.[^.]+$/, ''); // R23
+        const displayName = folder
+          ? `${folder}_${basename}.txt`
+          : fname;
+
+        item.innerHTML = `
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <div style="overflow:hidden;">
+            <div class="file-name" title="${fname}">${displayName}</div>
+          </div>`;
+
+        item.addEventListener('click', () => selectFile(item, f.file_path, f.hostname));
+        fileList.appendChild(item);
+      });
+
+    } catch (e) {
+      fileList.innerHTML = '<div class="file-empty">파일 목록 로드 실패.</div>';
+      console.error(e);
+    }
+  });
+
+  // ── 파일 선택 ────────────────────────────────────────────────
+  function selectFile(el, filePath, hostname) {
+    document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedFilePath = filePath;
+    selectedHostname = hostname;
+    resetIndexStatus();
+    indexBtn.disabled = false;
+    updateAnalyzeBtn();
+  }
+
+  // ── 인덱싱 ──────────────────────────────────────────────────
+  indexBtn.addEventListener('click', async function () {
+    if (!selectedFilePath) return;
+
+    setIndexStatus('loading', '인덱싱 중...');
+    indexBtn.disabled   = true;
+    analyzeBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/analyze/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_path:       selectedFilePath,
+          collection_name: selectedHostname,
+        }),
+      });
+
+      if (handle401(res)) return;
+
+      if (res.ok) {
+        const data = await res.json();
+        setIndexStatus('success', `인덱싱 완료 — ${data.chunks}개 청크 저장됨`);
+      } else {
+        const err = await res.json();
+        setIndexStatus('error', `인덱싱 실패: ${err.detail || res.status}`);
+      }
+    } catch (e) {
+      setIndexStatus('error', `오류: ${e.message}`);
+    } finally {
+      indexBtn.disabled = false;
+      updateAnalyzeBtn();
+    }
+  });
+
+  // ── 분석 ────────────────────────────────────────────────────
+  analyzeBtn.addEventListener('click', async function () {
+    const question = questionInput.value.trim();
+    if (!question || !selectedFilePath) return;
+
+    analyzeBtn.disabled = true;
+    answerEmpty.style.display = 'none';
+    answerBox.style.display   = 'block';
+    answerBox.className       = 'answer-box typing';
+    answerBox.textContent     = '';
+    answerMeta.style.display  = 'none';
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_path: selectedFilePath,
+          question:  question,
+        }),
+      });
+
+      if (handle401(res)) return;
+
+      if (res.ok) {
+        const data = await res.json();
+
+        // 타이핑 효과
+        answerBox.className = 'answer-box typing';
+        await typeText(answerBox, data.answer);
+        answerBox.className = 'answer-box';
+
+        // 메타 정보 표시
+        document.getElementById('metaModel').textContent  = data.model;
+        document.getElementById('metaChunks').textContent =
+          data.rag_used ? `청크 ${data.chunks}개` : '전체 파일';
+        const ragBadge = document.getElementById('metaRag');
+        if (data.rag_used) {
+          ragBadge.className   = 'badge badge-success';
+          ragBadge.textContent = 'RAG';
+        } else {
+          ragBadge.className   = 'badge badge-gray';
+          ragBadge.textContent = 'Fallback';
+        }
+        answerMeta.style.display = 'flex';
+
+      } else {
+        const err = await res.json();
+        answerBox.className   = 'answer-box';
+        answerBox.textContent = `오류: ${err.detail || res.status}`;
+      }
+    } catch (e) {
+      answerBox.className   = 'answer-box';
+      answerBox.textContent = `오류: ${e.message}`;
+    } finally {
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  // ── 질문 입력 시 분석 버튼 활성화 ───────────────────────────
+  questionInput.addEventListener('input', updateAnalyzeBtn);
+
+  // ── 헬퍼 ────────────────────────────────────────────────────
+  function updateAnalyzeBtn() {
+    analyzeBtn.disabled =
+      !selectedFilePath || !questionInput.value.trim();
+  }
+
+  function resetIndexStatus() {
+    setIndexStatus('idle', selectedFilePath
+      ? '인덱싱 버튼을 눌러 시작하세요.'
+      : '파일을 선택하세요.');
+  }
+
+  function setIndexStatus(type, text) {
+    indexStatus.className = `index-status ${type}`;
+    const icons = {
+      idle:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+      success: '<polyline points="20 6 9 17 4 12"/>',
+      error:   '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+      loading: '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>',
+    };
+    indexStatus.innerHTML = `
+      <svg viewBox="0 0 24 24">${icons[type]}</svg>
+      <span>${text}</span>`;
+  }
+
+  async function typeText(el, text) {
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    const chunkSize = 4;
+    for (let i = 0; i < text.length; i += chunkSize) {
+      el.textContent += text.slice(i, i + chunkSize);
+      await delay(12);
+    }
+  }
+
+  // ── 시작 ────────────────────────────────────────────────────
+  loadDevices();
+</script>
+{% endblock %}
