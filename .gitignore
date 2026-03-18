@@ -27,3 +27,6 @@ logs/
 # OS 생성 파일
 .DS_Store
 Thumbs.db
+
+# Celery Beat 스케줄 파일 (자동 생성)
+celerybeat-schedule
