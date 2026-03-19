@@ -212,6 +212,18 @@
     font-size: 13px;
   }
 
+  /* ── skeleton device-row ──────────────────────────────────
+     실제 .device-row와 동일한 flex 구조 + col 너비를 그대로 사용.
+     .skeleton-device-row 는 hover 효과 없이 shimmer만 표시.      */
+  .skeleton-device-row {
+    display: flex;
+    align-items: center;
+    padding: 9px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    gap: 0;
+  }
+  .skeleton-device-row:last-child { border-bottom: none; }
+
   /* ── 우측 슬라이드 패널 — <aside> ── */
   .side-panel {
     width: 320px;
@@ -355,8 +367,56 @@
         <span class="col-desc">설명</span>
         <span class="col-actions">작업</span>
       </div>
+      <!-- skeleton: 6행. loadDevices() → renderList() 완료 시 innerHTML 교체로 자동 제거 -->
       <div class="table-scroll" id="device-list">
-        <div class="empty-state">불러오는 중...</div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:120px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:140px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:100px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:78px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
+        <div class="skeleton-device-row">
+          <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+          <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+          <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+          <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+          <span class="col-desc"><div class="skeleton skeleton-cell" style="width:116px; height:13px;"></div></span>
+          <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+        </div>
       </div>
     </div>
 
@@ -426,6 +486,17 @@
   let _allDevices  = [];
   let _activeGroup = 'all';
 
+  // skeleton 행 템플릿 (필터 변경 시 재사용)
+  const SKEL_DEVICE_ROW = `
+    <div class="skeleton-device-row">
+      <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+      <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:88px; height:13px;"></div></span>
+      <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+      <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px; height:13px;"></div></span>
+      <span class="col-desc"><div class="skeleton skeleton-cell" style="width:110px; height:13px;"></div></span>
+      <span class="col-actions"><div class="skeleton skeleton-cell" style="width:56px; height:22px; border-radius:6px;"></div></span>
+    </div>`;
+
   document.addEventListener('DOMContentLoaded', loadDevices);
 
   async function loadDevices() {
@@ -445,6 +516,8 @@
     document.querySelectorAll('.btn-filter').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.group === group);
     });
+    // 필터 전환 시 skeleton 재표시 (데이터는 이미 로드됐으므로 즉시 교체되지만 시각적 일관성 유지)
+    document.getElementById('device-list').innerHTML = SKEL_DEVICE_ROW.repeat(4);
     applyFilter();
   }
 

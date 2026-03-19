@@ -379,6 +379,106 @@
 
     /* ── 401 처리용 전역 핸들러 (v4.3 추가) ────────────────── */
     /* fetch 401 수신 시 /login 리다이렉트는 아래 script 블록에서 처리 */
+
+    /* ================================================================
+       Skeleton UI — v5.3
+       shimmer 애니메이션 + 공통 skeleton 컴포넌트 클래스
+       ================================================================ */
+
+    /* shimmer keyframe
+       좌 → 우로 밝은 빛이 흘러가는 효과.
+       배경색(#1a1a1a)보다 살짝 밝은 #252525 포인트로 대비 유지. */
+    @keyframes skeleton-shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+
+    /* 모든 skeleton 요소의 공통 기반 */
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        #1e1e1e 25%,
+        #252525 50%,
+        #1e1e1e 75%
+      );
+      background-size: 600px 100%;
+      animation: skeleton-shimmer 1.4s ease-in-out infinite;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── 텍스트 줄 ── */
+    .skeleton-text {
+      height: 14px;
+      margin-bottom: 8px;
+    }
+    .skeleton-text.short  { width: 38%; }
+    .skeleton-text.medium { width: 62%; }
+    .skeleton-text.long   { width: 88%; }
+
+    /* ── Stat 카드 숫자/레이블 ── */
+    .skeleton-stat-num {
+      height: 38px;
+      width: 72px;
+      margin: 8px 0 6px;
+    }
+    .skeleton-stat-label {
+      height: 12px;
+      width: 88px;
+    }
+
+    /* ── 차트 플레이스홀더 ── */
+    .skeleton-chart {
+      height: 200px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ── 테이블 행 ── */
+    .skeleton-row {
+      display: flex;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(42,42,42,.6);
+      align-items: center;
+    }
+    .skeleton-row:last-child {
+      border-bottom: none;
+    }
+    .skeleton-cell {
+      height: 14px;
+      border-radius: 4px;
+    }
+
+    /* ── badge 형태 ── */
+    .skeleton-badge {
+      height: 20px;
+      width: 54px;
+      border-radius: 10px;
+    }
+
+    /* ── 제목 줄 (카드 헤더 등) ── */
+    .skeleton-title {
+      height: 18px;
+      width: 140px;
+      margin-bottom: 4px;
+    }
+
+    /* ── 가시성 제어 ──────────────────────────────────────────
+       skeleton-wrapper : 로딩 중 표시 (기본 block)
+       content-wrapper  : 로딩 중 숨김 (기본 none)
+
+       JS에서 hideSkeleton() 호출 시:
+         skeleton-wrapper → hidden (display:none)
+         content-wrapper  → visible (display:block or flex)
+       ────────────────────────────────────────────────────── */
+    .skeleton-wrapper         { display: block; }
+    .skeleton-wrapper.hidden  { display: none !important; }
+
+    .content-wrapper          { display: none; }
+    .content-wrapper.visible  { display: block; }
+
+    /* flex 컨텍스트가 필요한 content-wrapper (stat 카드 그리드 등) */
+    .content-wrapper.visible-flex { display: flex; }
   </style>
 
   {% block head %}{% endblock %}
@@ -507,6 +607,29 @@
       return true;
     }
     return false;
+  }
+
+  // ── Skeleton UI 헬퍼 — v5.3 ───────────────────────────────────
+  //
+  // 사용 패턴 (각 페이지 공통):
+  //   1) 페이지 로드 즉시: showSkeleton('xxx-skeleton') → shimmer 표시
+  //   2) fetch 완료 후  : hideSkeleton('xxx-skeleton', 'xxx-content') → 실제 콘텐츠 표시
+  //
+  // wrapperId  : skeleton-wrapper 요소의 id
+  // contentId  : content-wrapper 요소의 id
+  // flexMode   : true → content-wrapper에 visible-flex 클래스 적용 (flex 레이아웃 필요 시)
+  // ─────────────────────────────────────────────────────────────
+
+  function showSkeleton(wrapperId) {
+    const el = document.getElementById(wrapperId);
+    if (el) el.classList.remove('hidden');
+  }
+
+  function hideSkeleton(wrapperId, contentId, flexMode = false) {
+    const sk = document.getElementById(wrapperId);
+    const ct = document.getElementById(contentId);
+    if (sk) sk.classList.add('hidden');
+    if (ct) ct.classList.add(flexMode ? 'visible-flex' : 'visible');
   }
 </script>
 

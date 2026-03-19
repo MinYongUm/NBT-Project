@@ -120,6 +120,14 @@
     font-size: 14px;
   }
 
+  /* ── skeleton tbody 행 ────────────────────────────────── */
+  tbody .skeleton-row td {
+    border-bottom: 1px solid rgba(42, 42, 42, 0.6);
+    vertical-align: middle;
+  }
+  tbody .skeleton-row:last-child td { border-bottom: none; }
+  tbody .skeleton-row:hover td { background: transparent; }
+
   /* ── 파일 뷰어 <dialog> ── */
   #file-modal {
     padding: 0;
@@ -130,19 +138,16 @@
     width: 90vw;
     max-width: 960px;
     max-height: 80vh;
-    /* showModal()이 position:fixed를 자동 적용 → inset+margin으로 중앙 배치 */
     inset: 0;
     margin: auto;
     flex-direction: column;
     overflow: hidden;
-    /* display는 [open] 상태에서만 flex로 설정 — 기본값은 브라우저 none 유지 */
   }
 
   #file-modal[open] {
     display: flex;
   }
 
-  /* ::backdrop — dialog 내장 배경 처리 */
   #file-modal::backdrop {
     background: rgba(0, 0, 0, 0.75);
   }
@@ -188,7 +193,6 @@
 
   .modal-close:hover { color: var(--text); }
 
-  /* 검색 바 */
   .modal-search-wrap {
     position: relative;
     padding: 10px 20px;
@@ -313,8 +317,53 @@
         <th></th>
       </tr>
     </thead>
+    <!-- skeleton: 5행. loadHistory() 완료 시 tbody.innerHTML 교체로 자동 제거 -->
     <tbody id="history-tbody">
-      <tr><td colspan="7" class="empty">데이터 로딩 중...</td></tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
     </tbody>
   </table>
 </section>
@@ -328,7 +377,6 @@
     </div>
   </header>
 
-  <!-- 인라인 검색 -->
   <div class="modal-search-wrap">
     <input
       class="modal-search"
@@ -360,6 +408,18 @@
   async function loadHistory() {
     const limit = document.getElementById('limit-select').value;
     const tbody = document.getElementById('history-tbody');
+
+    // limit-select 변경 시 skeleton rows 재삽입 (재로딩 피드백)
+    tbody.innerHTML = `
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>`.repeat(parseInt(limit) < 5 ? parseInt(limit) : 5);
 
     try {
       const res = await fetch(`/api/history?limit=${limit}`);
@@ -481,7 +541,6 @@
     document.getElementById('modal-body').innerHTML     =
       '<div class="modal-status">불러오는 중...</div>';
 
-    // <dialog> 내장 showModal() — 자동으로 ::backdrop 적용 + focus trap
     fileModal.showModal();
 
     try {
@@ -510,13 +569,12 @@
   }
 
   function closeModal() {
-    fileModal.close();   // <dialog> 내장 close()
+    fileModal.close();
     _rawContent   = '';
     _matchIndexes = [];
     _currentMatch = -1;
   }
 
-  // ::backdrop 클릭 시 닫기 (dialog 외부 클릭)
   fileModal.addEventListener('click', e => {
     const rect = fileModal.getBoundingClientRect();
     const isOutside =
@@ -525,8 +583,6 @@
     if (isOutside) closeModal();
   });
 
-  // ESC 키는 <dialog>가 기본으로 처리 (close 이벤트 발생)
-  // 추가 정리 작업이 필요하면 cancel 이벤트로 처리
   fileModal.addEventListener('cancel', () => {
     _rawContent   = '';
     _matchIndexes = [];

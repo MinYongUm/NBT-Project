@@ -96,6 +96,15 @@
     height: 200px;
   }
 
+  /* ── 차트 skeleton overlay ─────────────────────────────────── */
+  /* chart-wrap(position:relative) 안에서 canvas 위를 덮음        */
+  .chart-skeleton-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-sm);
+    z-index: 1;
+  }
+
   .period-filter {
     display: flex;
     gap: 4px;
@@ -253,6 +262,16 @@
     color: var(--text-muted);
     border-color: transparent;
   }
+
+  /* ── skeleton tbody 행 ─────────────────────────────────────── */
+  /* td 안의 skeleton-cell: padding은 td에서, 높이/너비는 직접 지정 */
+  tbody .skeleton-row td {
+    border-bottom: 1px solid rgba(42, 42, 42, 0.6);
+    vertical-align: middle;
+  }
+  tbody .skeleton-row:last-child td { border-bottom: none; }
+  /* skeleton-row는 hover 효과 제외 */
+  tbody .skeleton-row:hover td { background: transparent; }
 </style>
 {% endblock %}
 
@@ -269,50 +288,63 @@
 <!-- 요약 통계 -->
 <section aria-label="요약 통계">
   <div class="stat-grid">
+
     <div class="stat-card">
       <div class="stat-label">전체 장비</div>
-      <div class="stat-value" id="val-total">—</div>
-      <div class="stat-sub" id="sub-total">최근 실행 기준</div>
+      <!-- skeleton: 숫자 영역 (38px 높이 shimmer 블록) -->
+      <!-- 데이터 로드 후 JS에서 skeleton 클래스 제거 + 실제 값 삽입 -->
+      <div class="stat-value skeleton skeleton-stat-num" id="val-total"></div>
+      <div class="stat-sub skeleton skeleton-text short" id="sub-total" style="margin-top:8px;"></div>
     </div>
+
     <div class="stat-card success">
       <div class="stat-label">성공</div>
-      <div class="stat-value" id="val-success">—</div>
-      <div class="stat-sub" id="sub-success">&nbsp;</div>
+      <div class="stat-value skeleton skeleton-stat-num" id="val-success"></div>
+      <div class="stat-sub skeleton skeleton-text short" id="sub-success" style="margin-top:8px;"></div>
     </div>
+
     <div class="stat-card danger">
       <div class="stat-label">실패</div>
-      <div class="stat-value" id="val-fail">—</div>
-      <div class="stat-sub" id="sub-fail">&nbsp;</div>
+      <div class="stat-value skeleton skeleton-stat-num" id="val-fail"></div>
+      <div class="stat-sub skeleton skeleton-text short" id="sub-fail" style="margin-top:8px;"></div>
     </div>
+
     <div class="stat-card info">
       <div class="stat-label">기간 내 실행</div>
-      <div class="stat-value" id="val-runs">—</div>
-      <div class="stat-sub" id="sub-runs">&nbsp;</div>
+      <div class="stat-value skeleton skeleton-stat-num" id="val-runs"></div>
+      <div class="stat-sub skeleton skeleton-text short" id="sub-runs" style="margin-top:8px;"></div>
     </div>
+
   </div>
 </section>
 
 <!-- 차트 -->
 <section aria-label="백업 현황 차트">
   <div class="chart-grid">
+
     <div class="chart-card">
       <div class="chart-card-header">
         <div class="chart-title" id="chart-backup-title">최근 7일 백업 현황</div>
         <div class="chart-meta" id="chart-backup-meta"></div>
       </div>
       <div class="chart-wrap">
+        <!-- skeleton: canvas 위를 inset:0 으로 덮음. 데이터 로드 후 remove() -->
+        <div id="skel-chart-backup" class="skeleton chart-skeleton-overlay"></div>
         <canvas id="chart-backup"></canvas>
       </div>
     </div>
+
     <div class="chart-card">
       <div class="chart-card-header">
         <div class="chart-title" id="chart-diff-title">최근 7일 Config 변경 감지</div>
         <div class="chart-meta" id="chart-diff-meta"></div>
       </div>
       <div class="chart-wrap">
+        <div id="skel-chart-diff" class="skeleton chart-skeleton-overlay"></div>
         <canvas id="chart-diff"></canvas>
       </div>
     </div>
+
   </div>
 </section>
 
@@ -334,8 +366,48 @@
           <th>Config Diff</th>
         </tr>
       </thead>
+      <!-- skeleton: 5행. updateTable() 호출 시 innerHTML 교체로 자동 제거됨 -->
       <tbody id="history-tbody">
-        <tr><td colspan="6" class="empty">데이터 로딩 중...</td></tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton skeleton-cell" style="width:36px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton skeleton-cell" style="width:36px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton skeleton-cell" style="width:36px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton skeleton-cell" style="width:36px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton skeleton-cell" style="width:36px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+          <td><div class="skeleton skeleton-cell" style="width:28px;"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -379,6 +451,35 @@
     cutoff.setDate(cutoff.getDate() - days);
     cutoff.setHours(0, 0, 0, 0);
     return runs.filter(r => new Date(r.run_at) >= cutoff);
+  }
+
+  // ------------------------------------------------------------------
+  // Skeleton 제거 헬퍼 (index.html 전용)
+  // ------------------------------------------------------------------
+
+  // stat 카드: stat-value / stat-sub 요소의 skeleton 클래스 제거
+  // → 제거 후 원래 .stat-value / .stat-sub 스타일이 그대로 적용됨
+  function clearStatSkeletons() {
+    const valueIds = ['val-total', 'val-success', 'val-fail', 'val-runs'];
+    const subIds   = ['sub-total', 'sub-success', 'sub-fail', 'sub-runs'];
+
+    valueIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('skeleton', 'skeleton-stat-num');
+    });
+    subIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('skeleton', 'skeleton-text', 'short');
+    });
+  }
+
+  // 차트 skeleton: overlay div를 DOM에서 제거
+  // canvas는 처음부터 DOM에 있었으므로 Chart.js가 바로 그릴 수 있음
+  function clearChartSkeletons() {
+    ['skel-chart-backup', 'skel-chart-diff'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
   }
 
   // ------------------------------------------------------------------
@@ -543,6 +644,9 @@
       ['val-total', 'val-success', 'val-fail', 'val-runs'].forEach(id => {
         document.getElementById(id).textContent = '0';
       });
+      ['sub-total', 'sub-success', 'sub-fail', 'sub-runs'].forEach(id => {
+        document.getElementById(id).textContent = '';
+      });
       return;
     }
 
@@ -644,10 +748,24 @@
         fetch('/api/diff?limit=500'),
       ]);
       if (handle401(histRes)) return;
+
       allRuns  = await histRes.json();
       allDiffs = await diffRes.json();
+
+      // skeleton 제거: stat 카드 + 차트 overlay
+      // (테이블은 updateTable() 내부에서 tbody.innerHTML 교체로 자동 제거)
+      clearStatSkeletons();
+      clearChartSkeletons();
+
       renderAll(currentDays);
+
     } catch (e) {
+      // 오류 시에도 skeleton은 반드시 제거
+      clearStatSkeletons();
+      clearChartSkeletons();
+      ['val-total', 'val-success', 'val-fail', 'val-runs'].forEach(id => {
+        document.getElementById(id).textContent = '—';
+      });
       document.getElementById('history-tbody').innerHTML =
         '<tr><td colspan="6" class="empty">데이터를 불러올 수 없습니다.</td></tr>';
     }

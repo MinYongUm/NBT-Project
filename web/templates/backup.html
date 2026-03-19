@@ -174,6 +174,18 @@
     font-size: 13px;
   }
 
+  /* ── skeleton device-item 행 ──────────────────────────────
+     실제 .device-item과 동일한 flex + padding + col 너비.
+     hover/selected 효과 없이 shimmer만 표시.              */
+  .skeleton-device-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .skeleton-device-item:last-child { border-bottom: none; }
+
   /* 상태 바 */
   .status-bar {
     display: flex;
@@ -295,8 +307,48 @@
       <span class="col-type">장비 타입</span>
       <span class="col-desc">설명</span>
     </div>
+    <!-- skeleton: 5행. loadDevices() → renderList() 완료 시 innerHTML 교체로 자동 제거 -->
     <div class="device-list" id="device-list">
-      <div class="empty-msg">장비 목록을 불러오는 중...</div>
+      <div class="skeleton-device-item">
+        <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+        <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+        <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+        <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:120px;height:12px;display:inline-block;"></div></span>
+      </div>
+      <div class="skeleton-device-item">
+        <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+        <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+        <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+        <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:90px;height:12px;display:inline-block;"></div></span>
+      </div>
+      <div class="skeleton-device-item">
+        <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+        <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+        <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+        <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:140px;height:12px;display:inline-block;"></div></span>
+      </div>
+      <div class="skeleton-device-item">
+        <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+        <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+        <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+        <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:100px;height:12px;display:inline-block;"></div></span>
+      </div>
+      <div class="skeleton-device-item">
+        <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+        <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+        <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+        <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+        <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:78px;height:12px;display:inline-block;"></div></span>
+      </div>
     </div>
   </div>
 </section>
@@ -328,6 +380,17 @@
 
   let _allDevices = [];
 
+  // skeleton 행 템플릿 (그룹 필터 변경 시 재사용)
+  const SKEL_DEVICE_ITEM = `
+    <div class="skeleton-device-item">
+      <span style="width:15px;flex-shrink:0;"><div class="skeleton skeleton-cell" style="width:13px;height:13px;border-radius:3px;"></div></span>
+      <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
+      <span class="col-hostname"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+      <span class="col-ip"><div class="skeleton skeleton-cell" style="width:110px;height:13px;"></div></span>
+      <span class="col-type"><div class="skeleton skeleton-cell" style="width:90px;height:13px;"></div></span>
+      <span style="flex:1;text-align:center;"><div class="skeleton skeleton-cell" style="width:110px;height:12px;display:inline-block;"></div></span>
+    </div>`;
+
   // ------------------------------------------------------------------
   // 초기화
   // ------------------------------------------------------------------
@@ -350,7 +413,11 @@
   // 그룹 select 변경
   // ------------------------------------------------------------------
   function onGroupChange() {
-    const group    = document.getElementById('group-select').value;
+    const group = document.getElementById('group-select').value;
+
+    // 그룹 필터 전환 시 skeleton 재삽입
+    document.getElementById('device-list').innerHTML = SKEL_DEVICE_ITEM.repeat(4);
+
     const filtered = group
       ? _allDevices.filter(d => d.group_name === group)
       : _allDevices;

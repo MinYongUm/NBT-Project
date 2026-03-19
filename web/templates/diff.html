@@ -77,6 +77,14 @@
     font-size: 14px;
   }
 
+  /* ── skeleton tbody 행 ────────────────────────────────── */
+  tbody .skeleton-row td {
+    border-bottom: 1px solid rgba(42, 42, 42, 0.6);
+    vertical-align: middle;
+  }
+  tbody .skeleton-row:last-child td { border-bottom: none; }
+  tbody .skeleton-row:hover td { background: transparent; }
+
   /* ── Diff 뷰어 <dialog> ── */
   #diff-modal {
     padding: 0;
@@ -87,12 +95,10 @@
     width: 96vw;
     max-width: 1400px;
     max-height: 85vh;
-    /* showModal()이 position:fixed를 자동 적용 → inset+margin으로 중앙 배치 */
     inset: 0;
     margin: auto;
     flex-direction: column;
     overflow: hidden;
-    /* display는 [open] 상태에서만 flex로 설정 — 기본값은 브라우저 none 유지 */
   }
 
   #diff-modal[open] { display: flex; }
@@ -274,8 +280,43 @@
         <th></th>
       </tr>
     </thead>
+    <!-- skeleton: 5행. loadDiffs() 완료 시 tbody.innerHTML 교체로 자동 제거 -->
     <tbody id="diff-tbody">
-      <tr><td colspan="5" class="empty">데이터 로딩 중...</td></tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:120px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:100px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:130px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:108px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:116px;"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+        <td><div class="skeleton skeleton-badge"></div></td>
+        <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+      </tr>
     </tbody>
   </table>
 </section>
@@ -315,9 +356,22 @@
 
   const diffModal = document.getElementById('diff-modal');
 
+  // skeleton 행 템플릿 (limit-select 변경 시 재사용)
+  const SKEL_ROW = `
+    <tr class="skeleton-row">
+      <td><div class="skeleton skeleton-cell" style="width:140px;"></div></td>
+      <td><div class="skeleton skeleton-cell" style="width:120px;"></div></td>
+      <td><div class="skeleton skeleton-cell" style="width:110px;"></div></td>
+      <td><div class="skeleton skeleton-badge"></div></td>
+      <td><div class="skeleton skeleton-cell" style="width:64px;"></div></td>
+    </tr>`;
+
   async function loadDiffs() {
     const limit = document.getElementById('limit-select').value;
     const tbody = document.getElementById('diff-tbody');
+
+    // limit-select 변경 시 skeleton rows 재삽입 (재로딩 피드백)
+    tbody.innerHTML = SKEL_ROW.repeat(Math.min(parseInt(limit), 5));
 
     try {
       const res = await fetch(`/api/diff?limit=${limit}`);
@@ -487,10 +541,10 @@
         </tr>`;
       }
 
-      const leftLnCls    = row.left  ? 'ln td-remove-ln'   : 'ln td-empty-ln';
-      const leftCodeCls  = row.left  ? 'code td-remove-code': 'code td-empty-code';
-      const rightLnCls   = row.right ? 'ln td-add-ln'       : 'ln td-empty-ln';
-      const rightCodeCls = row.right ? 'code td-add-code'   : 'code td-empty-code';
+      const leftLnCls    = row.left  ? 'ln td-remove-ln'    : 'ln td-empty-ln';
+      const leftCodeCls  = row.left  ? 'code td-remove-code' : 'code td-empty-code';
+      const rightLnCls   = row.right ? 'ln td-add-ln'        : 'ln td-empty-ln';
+      const rightCodeCls = row.right ? 'code td-add-code'    : 'code td-empty-code';
 
       return `<tr>
         <td class="${leftLnCls}">${row.left  ? row.left.ln  : ''}</td>

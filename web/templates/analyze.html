@@ -163,6 +163,50 @@
   .compare-device-status.indexed   { color: var(--success); }
   .compare-device-status.unindexed { color: var(--text-muted); }
 
+  /* ── skeleton: compare-device-item 구조 모방 ─────────────────
+     checkbox 자리(14px) + gap(10px) + info 영역(이름줄 + 상태줄)
+     실제 .compare-device-item과 동일한 padding/border/border-radius 유지 */
+  .skeleton-compare-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .skeleton-compare-item .skel-check {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .skeleton-compare-item .skel-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow: hidden;
+  }
+
+  /* ── skeleton: file-item 구조 모방 ───────────────────────────
+     아이콘 자리(14px) + gap(8px) + 파일명 텍스트 줄 */
+  .skeleton-file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .skeleton-file-item .skel-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
   /* ── 오른쪽 패널 ── */
   .panel-right { display: flex; flex-direction: column; gap: 16px; }
 
@@ -291,6 +335,8 @@
 
     <div class="card">
       <p class="section-title">백업 파일</p>
+      <!-- 초기값: 의도적 empty state (장비 선택 전) → skeleton 대상 아님
+           장비 선택 후 파일 로딩 시 JS에서 skeleton-file-item으로 교체 -->
       <div class="file-list" id="fileList">
         <div class="file-empty">장비를 먼저 선택하세요.</div>
       </div>
@@ -380,8 +426,36 @@
         비교할 장비를 2대 이상 선택하세요.<br>
         인덱싱된 장비만 비교에 포함됩니다.
       </p>
+      <!-- skeleton: 4행. loadDevices() → renderCompareDeviceList() 완료 시 innerHTML 교체로 자동 제거 -->
       <div class="compare-device-list" id="compareDeviceList">
-        <div class="file-empty">장비 목록을 불러오는 중...</div>
+        <div class="skeleton-compare-item">
+          <div class="skeleton skel-check"></div>
+          <div class="skel-info">
+            <div class="skeleton skeleton-cell" style="width:140px; height:13px;"></div>
+            <div class="skeleton skeleton-cell" style="width:72px;  height:11px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-compare-item">
+          <div class="skeleton skel-check"></div>
+          <div class="skel-info">
+            <div class="skeleton skeleton-cell" style="width:120px; height:13px;"></div>
+            <div class="skeleton skeleton-cell" style="width:72px;  height:11px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-compare-item">
+          <div class="skeleton skel-check"></div>
+          <div class="skel-info">
+            <div class="skeleton skeleton-cell" style="width:156px; height:13px;"></div>
+            <div class="skeleton skeleton-cell" style="width:72px;  height:11px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-compare-item">
+          <div class="skeleton skel-check"></div>
+          <div class="skel-info">
+            <div class="skeleton skeleton-cell" style="width:130px; height:13px;"></div>
+            <div class="skeleton skeleton-cell" style="width:72px;  height:11px;"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -478,6 +552,22 @@
   const compareAnswerBox     = document.getElementById('compareAnswerBox');
   const compareAnswerMeta    = document.getElementById('compareAnswerMeta');
 
+  // skeleton 템플릿 (재사용)
+  const SKEL_FILE_ITEM = `
+    <div class="skeleton-file-item">
+      <div class="skeleton skel-icon"></div>
+      <div class="skeleton skeleton-cell" style="width:140px; height:11px;"></div>
+    </div>`;
+
+  const SKEL_COMPARE_ITEM = `
+    <div class="skeleton-compare-item">
+      <div class="skeleton skel-check"></div>
+      <div class="skel-info">
+        <div class="skeleton skeleton-cell" style="width:130px; height:13px;"></div>
+        <div class="skeleton skeleton-cell" style="width:72px;  height:11px;"></div>
+      </div>
+    </div>`;
+
   // ── 탭 전환 ──────────────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -504,8 +594,12 @@
         deviceSelect.appendChild(opt);
       });
 
+      // 장비 목록 로드 완료 → compareDeviceList skeleton 교체
       renderCompareDeviceList();
     } catch (e) {
+      // 로드 실패 시 skeleton 제거 후 오류 메시지 표시
+      compareDeviceList.innerHTML =
+        '<div class="file-empty">장비 목록을 불러오지 못했습니다.</div>';
       console.error('장비 목록 로드 실패:', e);
     }
   }
@@ -577,7 +671,8 @@
       return;
     }
 
-    fileList.innerHTML = '<div class="file-empty">파일 목록 불러오는 중...</div>';
+    // 파일 목록 로딩 시 skeleton file items 표시 (3개)
+    fileList.innerHTML = SKEL_FILE_ITEM.repeat(3);
 
     try {
       const res  = await fetch('/api/history?limit=20');
@@ -616,6 +711,7 @@
         selOpt.dataset.hostname = realHostname;
       }
 
+      // skeleton 제거 후 실제 파일 아이템 렌더링
       fileList.innerHTML = '';
       unique.forEach(f => {
         const item         = document.createElement('div');
