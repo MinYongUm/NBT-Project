@@ -1,5 +1,5 @@
 # NBT-Project
-> Current Version: v5.1
+> Current Version: v5.2
 
 ## 1. 프로젝트 개요
 
@@ -31,6 +31,7 @@ Python과 Netmiko를 활용하여 Cisco IOS 네트워크 장비 설정을 자동
 - Ollama 로컬 LLM 기반 Config 분석 (외부 API 전송 없음)
 - ChromaDB RAG 파이프라인: 벡터 인덱싱 후 유사 청크 검색
 - 다중 장비 비교 분석: 장비별 설정 차이 분석
+- 자동 분석 리포트: 백업 완료 후 변경 감지 장비 자동 분석 후 HTML 메일 발송
 
 ### 2-4. 운영
 - Web UI 기반 장비 관리 (추가/수정/비활성화)
@@ -55,16 +56,17 @@ NBT-Project/
 │   ├── commands.yaml
 │   └── settings.yaml.example
 ├── core/
-│   ├── analyzer.py         # Ollama LLM 호출 로직 (단일/비교 분석)
+│   ├── analyzer.py         # Ollama LLM 호출 로직 (단일/비교 분석, 마크다운 후처리)
 │   ├── rag.py              # ChromaDB RAG 파이프라인 (청크 분할, 임베딩, 검색)
+│   ├── report.py           # HTML 리포트 생성
 │   ├── auth.py             # JWT 인증, 비밀번호 검증, 의존성 함수
 │   ├── celery_app.py       # Celery 앱 인스턴스 + beat_schedule
-│   ├── tasks.py            # backup_task + cleanup_task
+│   ├── tasks.py            # backup_task + cleanup_task + analysis_task + report_task
 │   └── backup.py           # 백업 실행 메인 로직
 ├── utils/
 │   ├── config_loader.py
 │   ├── db_manager.py       # SQLite 이력 관리 (WAL 모드)
-│   └── notifier.py
+│   └── notifier.py         # Slack/Email 알림 + HTML 리포트 메일 발송
 ├── web/
 │   └── templates/
 │       ├── base.html       # 공통 레이아웃 (로그아웃 버튼, handle401)
@@ -74,7 +76,7 @@ NBT-Project/
 │       ├── history.html    # 백업 이력 + 파일 뷰어 모달
 │       ├── diff.html       # Config Diff split view
 │       ├── devices.html    # 장비 관리 (그룹 필터 + IP 검색)
-│       └── analyze.html    # AI 분석 (단일/비교 분석 탭)
+│       └── analyze.html    # AI 분석 (단일/비교 분석 탭, 프로그레스 바)
 ├── app.py
 ├── main.py
 ├── .env.example
@@ -135,6 +137,10 @@ NBT_OLLAMA_MODEL=qwen2.5:7b
 # ChromaDB RAG
 NBT_CHROMA_URL=http://nbt-chroma:8000
 NBT_EMBED_MODEL=nomic-embed-text
+
+# Email 알림 (선택)
+NBT_SMTP_USER=your_email@gmail.com
+NBT_SMTP_PASSWORD=your_app_password
 ```
 
 ### 4-4. 실행
@@ -198,8 +204,8 @@ v4.x  : Web 전환
 
 v5.x  : AI
   v5.0   - Ollama 로컬 LLM Config 분석 API
-  v5.1   - RAG 파이프라인 (ChromaDB + 임베딩) + 다중 장비 비교 분석   <- 현재 버전
-  v5.2   - 자동 분석 리포트 (백업 완료 후 AI 분석 → 메일 발송)
+  v5.1   - RAG 파이프라인 (ChromaDB + 임베딩) + 다중 장비 비교 분석
+  v5.2   - 자동 분석 리포트 (백업 완료 후 AI 분석 → HTML 메일 발송)  <- 현재 버전
 ```
 
 ## 8. 라이선스
