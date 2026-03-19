@@ -8,7 +8,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
   .stat-card {
@@ -24,6 +24,7 @@
   .stat-card.success { border-top-color: var(--success); }
   .stat-card.danger  { border-top-color: var(--danger); }
   .stat-card.neutral { border-top-color: #888; }
+  .stat-card.info    { border-top-color: #a78bfa; }
 
   .stat-label {
     font-size: 12px;
@@ -49,11 +50,18 @@
   }
 
   /* 차트 영역 */
+  .chart-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
   .chart-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
   .chart-card {
@@ -63,13 +71,25 @@
     padding: 20px 24px;
   }
 
+  .chart-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
   .chart-title {
     font-size: 12px;
     color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 16px;
+  }
+
+  .chart-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
   }
 
   .chart-wrap {
@@ -77,16 +97,59 @@
     height: 200px;
   }
 
+  /* 기간 필터 버튼 */
+  .period-filter {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .period-btn {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--mono);
+  }
+
+  .period-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .period-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
   /* 이력 테이블 */
   .page-title { margin-bottom: 24px; }
 
   .recent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .recent-header-label {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-muted);
-    margin-bottom: 16px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .recent-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
   }
 
   table {
@@ -122,18 +185,76 @@
     color: var(--text-muted);
     font-size: 14px;
   }
+
+  /* 성공률 인라인 바 */
+  .rate-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rate-bar {
+    flex: 1;
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+
+  .rate-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--success);
+    transition: width 0.4s ease;
+  }
+
+  .rate-bar-fill.partial { background: #f59e0b; }
+  .rate-bar-fill.failed  { background: var(--danger); }
+
+  .rate-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* diff 건수 badge */
+  .diff-count {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+  }
+
+  .diff-count.zero {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: transparent;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1 class="page-title">대시보드</h1>
+<div class="page-title" style="display:flex; align-items:center; justify-content:space-between;">
+  <h1>대시보드</h1>
+  <div class="period-filter" id="period-filter">
+    <button class="period-btn active" data-days="7">7D</button>
+    <button class="period-btn" data-days="14">14D</button>
+    <button class="period-btn" data-days="30">30D</button>
+  </div>
+</div>
 
 <!-- Stat 카드 -->
 <div class="stat-grid">
   <div class="stat-card">
     <div class="stat-label">전체 장비</div>
     <div class="stat-value" id="val-total">—</div>
-    <div class="stat-sub">최근 실행 기준</div>
+    <div class="stat-sub" id="sub-total">최근 실행 기준</div>
   </div>
   <div class="stat-card success">
     <div class="stat-label">성공</div>
@@ -145,25 +266,29 @@
     <div class="stat-value" id="val-fail">—</div>
     <div class="stat-sub" id="sub-fail">&nbsp;</div>
   </div>
-  <div class="stat-card neutral">
-    <div class="stat-label">마지막 실행</div>
-    <div class="stat-value" style="font-size:20px;" id="val-time">—</div>
-    <div class="stat-sub" id="sub-time">&nbsp;</div>
+  <div class="stat-card info">
+    <div class="stat-label">기간 내 실행</div>
+    <div class="stat-value" id="val-runs">—</div>
+    <div class="stat-sub" id="sub-runs">&nbsp;</div>
   </div>
 </div>
 
 <!-- 차트 영역 -->
 <div class="chart-grid">
-  <!-- 백업 현황 차트 -->
   <div class="chart-card">
-    <div class="chart-title">최근 7일 백업 현황</div>
+    <div class="chart-card-header">
+      <div class="chart-title" id="chart-backup-title">최근 7일 백업 현황</div>
+      <div class="chart-meta" id="chart-backup-meta"></div>
+    </div>
     <div class="chart-wrap">
       <canvas id="chart-backup"></canvas>
     </div>
   </div>
-  <!-- Config Diff 차트 -->
   <div class="chart-card">
-    <div class="chart-title">최근 7일 Config 변경 감지</div>
+    <div class="chart-card-header">
+      <div class="chart-title" id="chart-diff-title">최근 7일 Config 변경 감지</div>
+      <div class="chart-meta" id="chart-diff-meta"></div>
+    </div>
     <div class="chart-wrap">
       <canvas id="chart-diff"></canvas>
     </div>
@@ -172,16 +297,19 @@
 
 <!-- 최근 이력 테이블 -->
 <div class="card">
-  <div class="recent-header">최근 백업 이력</div>
+  <div class="recent-header">
+    <span class="recent-header-label">백업 이력</span>
+    <span class="recent-count" id="history-count"></span>
+  </div>
   <table>
     <thead>
       <tr>
         <th>RUN #</th>
         <th>실행 시각</th>
-        <th>완료 시각</th>
         <th>전체</th>
-        <th>성공</th>
+        <th>성공률</th>
         <th>실패</th>
+        <th>Config Diff</th>
       </tr>
     </thead>
     <tbody id="history-tbody">
@@ -195,87 +323,175 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   // ------------------------------------------------------------------
-  // 공통 — 최근 7일 날짜 레이블 생성 (오늘 포함)
+  // 상태
   // ------------------------------------------------------------------
-  function getLast7Days() {
+  let currentDays  = 7;
+  let chartBackup  = null;
+  let chartDiff    = null;
+  let allRuns      = [];  // 전체 페치 데이터 캐시
+  let allDiffs     = [];
+
+  // ------------------------------------------------------------------
+  // 날짜 헬퍼
+  // ------------------------------------------------------------------
+  function getDateLabels(days) {
     const labels = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      // MM/DD 형식
-      labels.push(`${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`);
+      labels.push(
+        `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+      );
     }
     return labels;
   }
 
-  // ISO 문자열 → MM/DD
   function toDateLabel(isoStr) {
     const d = new Date(isoStr);
     return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // ------------------------------------------------------------------
-  // 백업 현황 차트
-  // ------------------------------------------------------------------
-  function renderBackupChart(runs) {
-    const labels  = getLast7Days();
+  // 기간 내 runs 필터
+  function filterByDays(runs, days) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    cutoff.setHours(0, 0, 0, 0);
+    return runs.filter(r => new Date(r.run_at) >= cutoff);
+  }
 
-    // 날짜별 성공/실패 집계
+  // ------------------------------------------------------------------
+  // 백업 현황 차트 (Stacked Bar + 성공률 Line, 보조 y축)
+  // ------------------------------------------------------------------
+  function renderBackupChart(runs, days) {
+    const labels     = getDateLabels(days);
+    const filtered   = filterByDays(runs, days);
+
+    // 날짜별 성공/실패/전체 집계
     const successMap = Object.fromEntries(labels.map(l => [l, 0]));
     const failMap    = Object.fromEntries(labels.map(l => [l, 0]));
+    const totalMap   = Object.fromEntries(labels.map(l => [l, 0]));
 
-    runs.forEach(r => {
+    filtered.forEach(r => {
       const label = toDateLabel(r.run_at);
       if (label in successMap) {
         successMap[label] += r.success;
         failMap[label]    += r.fail;
+        totalMap[label]   += r.total;
       }
     });
 
-    new Chart(document.getElementById('chart-backup'), {
-      type: 'bar',
+    // 성공률 계산 (null = 데이터 없는 날)
+    const rateData = labels.map(l =>
+      totalMap[l] > 0 ? Math.round(successMap[l] / totalMap[l] * 100) : null
+    );
+
+    // 기간 내 전체 성공률 (meta 표시용)
+    const totalAll   = filtered.reduce((s, r) => s + r.total, 0);
+    const successAll = filtered.reduce((s, r) => s + r.success, 0);
+    const overallRate = totalAll > 0 ? Math.round(successAll / totalAll * 100) : null;
+
+    document.getElementById('chart-backup-title').textContent =
+      `최근 ${days}일 백업 현황`;
+    document.getElementById('chart-backup-meta').textContent =
+      overallRate !== null ? `전체 성공률 ${overallRate}%` : '';
+
+    if (chartBackup) chartBackup.destroy();
+
+    chartBackup = new Chart(document.getElementById('chart-backup'), {
       data: {
         labels,
         datasets: [
           {
+            type: 'bar',
             label: '성공',
             data: labels.map(l => successMap[l]),
             backgroundColor: 'rgba(34, 197, 94, 0.7)',
             borderRadius: 4,
             borderSkipped: false,
+            yAxisID: 'y',
+            stack: 'backup',
+            order: 2,
           },
           {
+            type: 'bar',
             label: '실패',
             data: labels.map(l => failMap[l]),
             backgroundColor: 'rgba(239, 68, 68, 0.7)',
             borderRadius: 4,
             borderSkipped: false,
+            yAxisID: 'y',
+            stack: 'backup',
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: '성공률(%)',
+            data: rateData,
+            borderColor: 'rgba(167, 139, 250, 0.9)',
+            backgroundColor: 'rgba(167, 139, 250, 0.1)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: 'rgba(167, 139, 250, 1)',
+            tension: 0.3,
+            spanGaps: true,
+            yAxisID: 'yRate',
+            order: 1,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
         plugins: {
           legend: {
-            labels: { color: '#888', font: { size: 11 } },
+            labels: { color: '#888', font: { size: 11 }, boxWidth: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              afterBody(context) {
+                const idx   = context[0].dataIndex;
+                const total = totalMap[labels[idx]];
+                const rate  = rateData[idx];
+                if (total === 0) return '';
+                return `전체 ${total}대 | 성공률 ${rate ?? 0}%`;
+              },
+            },
           },
         },
         scales: {
           x: {
             stacked: true,
-            ticks: { color: '#666', font: { size: 11 } },
-            grid:  { color: '#1f1f1f' },
+            ticks: { color: '#555', font: { size: 11 } },
+            grid:  { color: '#1a1a1a' },
           },
           y: {
             stacked: true,
             beginAtZero: true,
-            ticks: {
-              color: '#666',
-              font: { size: 11 },
-              precision: 0,
+            position: 'left',
+            ticks: { color: '#555', font: { size: 11 }, precision: 0 },
+            grid: { color: '#1a1a1a' },
+            title: {
+              display: true,
+              text: '장비 수',
+              color: '#444',
+              font: { size: 10 },
             },
-            grid: { color: '#1f1f1f' },
+          },
+          yRate: {
+            beginAtZero: false,
+            min: 0,
+            max: 100,
+            position: 'right',
+            ticks: {
+              color: '#6d5fad',
+              font: { size: 11 },
+              callback: v => `${v}%`,
+            },
+            grid: { drawOnChartArea: false },
           },
         },
       },
@@ -285,26 +501,50 @@
   // ------------------------------------------------------------------
   // Config Diff 차트
   // ------------------------------------------------------------------
-  function renderDiffChart(diffs) {
-    const labels  = getLast7Days();
-    const diffMap = Object.fromEntries(labels.map(l => [l, 0]));
+  function renderDiffChart(diffs, days) {
+    const labels  = getDateLabels(days);
+    const cutoff  = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    cutoff.setHours(0, 0, 0, 0);
 
-    diffs.forEach(d => {
+    const filtered = diffs.filter(d => new Date(d.detected_at) >= cutoff);
+
+    // 날짜별 건수 + 누적 변경 라인 수
+    const countMap = Object.fromEntries(labels.map(l => [l, 0]));
+    const lineMap  = Object.fromEntries(labels.map(l => [l, 0]));
+
+    filtered.forEach(d => {
       const label = toDateLabel(d.detected_at);
-      if (label in diffMap) {
-        diffMap[label] += 1;
+      if (label in countMap) {
+        countMap[label] += 1;
+        lineMap[label]  += (d.diff_lines || 0);
       }
     });
 
-    new Chart(document.getElementById('chart-diff'), {
+    // 건수 0인 날 = 회색, 1 이상 = 파란색
+    const bgColors = labels.map(l =>
+      countMap[l] > 0
+        ? 'rgba(59, 130, 246, 0.75)'
+        : 'rgba(80, 80, 80, 0.3)'
+    );
+
+    const totalDiffCount = filtered.length;
+    document.getElementById('chart-diff-title').textContent =
+      `최근 ${days}일 Config 변경 감지`;
+    document.getElementById('chart-diff-meta').textContent =
+      totalDiffCount > 0 ? `총 ${totalDiffCount}건` : '변경 없음';
+
+    if (chartDiff) chartDiff.destroy();
+
+    chartDiff = new Chart(document.getElementById('chart-diff'), {
       type: 'bar',
       data: {
         labels,
         datasets: [
           {
             label: 'Config 변경',
-            data: labels.map(l => diffMap[l]),
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            data: labels.map(l => countMap[l]),
+            backgroundColor: bgColors,
             borderRadius: 4,
             borderSkipped: false,
           },
@@ -313,24 +553,40 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
         plugins: {
           legend: {
-            labels: { color: '#888', font: { size: 11 } },
+            labels: { color: '#888', font: { size: 11 }, boxWidth: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              afterBody(context) {
+                const idx   = context[0].dataIndex;
+                const label = labels[idx];
+                const lines = lineMap[label];
+                if (countMap[label] === 0) return '변경 없음';
+                return `변경 라인 합계 ${lines}줄`;
+              },
+            },
           },
         },
         scales: {
           x: {
-            ticks: { color: '#666', font: { size: 11 } },
-            grid:  { color: '#1f1f1f' },
+            ticks: { color: '#555', font: { size: 11 } },
+            grid:  { color: '#1a1a1a' },
           },
           y: {
             beginAtZero: true,
             ticks: {
-              color: '#666',
+              color: '#555',
               font: { size: 11 },
               precision: 0,
+              stepSize: 1,
             },
-            grid: { color: '#1f1f1f' },
+            grid: { color: '#1a1a1a' },
           },
         },
       },
@@ -338,72 +594,130 @@
   }
 
   // ------------------------------------------------------------------
-  // 대시보드 로드
+  // Stat 카드 업데이트
+  // ------------------------------------------------------------------
+  function updateStats(runs, days) {
+    const filtered = filterByDays(runs, days);
+
+    if (!runs.length) {
+      ['val-total', 'val-success', 'val-fail', 'val-runs'].forEach(id => {
+        document.getElementById(id).textContent = '0';
+      });
+      return;
+    }
+
+    // 최근 1회 실행 기준 (전체/성공/실패)
+    const latest = runs[0];
+    document.getElementById('val-total').textContent   = latest.total;
+    document.getElementById('val-success').textContent = latest.success;
+    document.getElementById('val-fail').textContent    = latest.fail;
+
+    const successRate = latest.total
+      ? Math.round(latest.success / latest.total * 100) : 0;
+    document.getElementById('sub-total').textContent   = '최근 실행 기준';
+    document.getElementById('sub-success').textContent = `성공률 ${successRate}%`;
+    document.getElementById('sub-fail').textContent    =
+      latest.fail > 0 ? '확인 필요' : '이상 없음';
+
+    // 기간 내 실행 횟수
+    document.getElementById('val-runs').textContent  = filtered.length;
+    document.getElementById('sub-runs').textContent  = `최근 ${days}일 기준`;
+  }
+
+  // ------------------------------------------------------------------
+  // 이력 테이블 업데이트 (기간 필터 + Config Diff 컬럼)
+  // ------------------------------------------------------------------
+  function updateTable(runs, diffs, days) {
+    const filtered = filterByDays(runs, days);
+    const tbody    = document.getElementById('history-tbody');
+    const countEl  = document.getElementById('history-count');
+
+    countEl.textContent = `${filtered.length}건`;
+
+    if (!filtered.length) {
+      tbody.innerHTML =
+        `<tr><td colspan="6" class="empty">최근 ${days}일 내 백업 이력이 없습니다.</td></tr>`;
+      return;
+    }
+
+    // run_id별 diff 건수 집계
+    const diffByRun = {};
+    diffs.forEach(d => {
+      diffByRun[d.run_id] = (diffByRun[d.run_id] || 0) + 1;
+    });
+
+    tbody.innerHTML = filtered.map(r => {
+      const runAt      = r.run_at.slice(0, 16).replace('T', ' ');
+      const rate       = r.total ? Math.round(r.success / r.total * 100) : 0;
+      const fillClass  = rate === 100 ? '' : rate >= 50 ? 'partial' : 'failed';
+      const failBadge  = r.fail > 0
+        ? `<span class="badge badge-danger">${r.fail}</span>`
+        : `<span style="color:var(--text-muted)">0</span>`;
+      const diffCount  = diffByRun[r.run_id] || 0;
+      const diffBadge  = diffCount > 0
+        ? `<span class="diff-count">${diffCount}건</span>`
+        : `<span class="diff-count zero">—</span>`;
+
+      return `
+        <tr>
+          <td>#${r.run_id}</td>
+          <td>${runAt}</td>
+          <td>${r.total}</td>
+          <td>
+            <div class="rate-bar-wrap">
+              <div class="rate-bar">
+                <div class="rate-bar-fill ${fillClass}" style="width:${rate}%"></div>
+              </div>
+              <span class="rate-text">${rate}%</span>
+            </div>
+          </td>
+          <td>${failBadge}</td>
+          <td>${diffBadge}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ------------------------------------------------------------------
+  // 전체 렌더링 (기간 변경 시 재호출)
+  // ------------------------------------------------------------------
+  function renderAll(days) {
+    updateStats(allRuns, days);
+    renderBackupChart(allRuns, days);
+    renderDiffChart(allDiffs, days);
+    updateTable(allRuns, allDiffs, days);
+  }
+
+  // ------------------------------------------------------------------
+  // 기간 필터 버튼 이벤트
+  // ------------------------------------------------------------------
+  document.getElementById('period-filter').addEventListener('click', e => {
+    const btn = e.target.closest('.period-btn');
+    if (!btn) return;
+
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    currentDays = parseInt(btn.dataset.days, 10);
+    renderAll(currentDays);
+  });
+
+  // ------------------------------------------------------------------
+  // 최초 데이터 로드
+  // API limit: 30일치 충분히 커버하도록 100건
   // ------------------------------------------------------------------
   async function loadDashboard() {
     try {
-      // 백업 이력 + Diff 이력 병렬 호출
       const [histRes, diffRes] = await Promise.all([
-        fetch('/api/history?limit=50'),
-        fetch('/api/diff?limit=100'),
+        fetch('/api/history?limit=100'),
+        fetch('/api/diff?limit=500'),
       ]);
 
       if (handle401(histRes)) return;
 
-      const runs  = await histRes.json();
-      const diffs = await diffRes.json();
+      allRuns  = await histRes.json();
+      allDiffs = await diffRes.json();
 
-      // Stat 카드 — 가장 최근 run 기준
-      if (runs.length) {
-        const latest = runs[0];
-        document.getElementById('val-total').textContent   = latest.total;
-        document.getElementById('val-success').textContent = latest.success;
-        document.getElementById('val-fail').textContent    = latest.fail;
-
-        const runAt = latest.run_at.slice(0, 16).replace('T', ' ');
-        document.getElementById('val-time').textContent = runAt;
-        document.getElementById('sub-time').textContent = `RUN #${latest.run_id}`;
-
-        const successRate = latest.total
-          ? Math.round(latest.success / latest.total * 100) : 0;
-        document.getElementById('sub-success').textContent = `성공률 ${successRate}%`;
-        document.getElementById('sub-fail').textContent =
-          latest.fail > 0 ? '확인 필요' : '이상 없음';
-      } else {
-        ['val-total', 'val-success', 'val-fail', 'val-time'].forEach(id => {
-          document.getElementById(id).textContent = '0';
-        });
-      }
-
-      // 차트 렌더링
-      renderBackupChart(runs);
-      renderDiffChart(diffs);
-
-      // 이력 테이블 (최근 5건)
-      const tbody = document.getElementById('history-tbody');
-      if (!runs.length) {
-        tbody.innerHTML =
-          '<tr><td colspan="6" class="empty">백업 이력이 없습니다.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = runs.slice(0, 5).map(r => {
-        const runAt  = r.run_at.slice(0, 19).replace('T', ' ');
-        const finAt  = r.finished_at
-          ? r.finished_at.slice(0, 19).replace('T', ' ') : '—';
-        const failBadge = r.fail > 0
-          ? `<span class="badge badge-danger">${r.fail}</span>`
-          : `<span class="badge badge-success">0</span>`;
-        return `
-          <tr>
-            <td>#${r.run_id}</td>
-            <td>${runAt}</td>
-            <td>${finAt}</td>
-            <td>${r.total}</td>
-            <td><span class="badge badge-success">${r.success}</span></td>
-            <td>${failBadge}</td>
-          </tr>`;
-      }).join('');
+      renderAll(currentDays);
 
     } catch (e) {
       document.getElementById('history-tbody').innerHTML =
