@@ -80,8 +80,8 @@ class DBManager:
             self._conn.executescript("""
                 CREATE TABLE IF NOT EXISTS backup_runs (
                     run_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_at      TEXT NOT NULL,
                     finished_at TEXT,
+                    run_at      TEXT NOT NULL,
                     total       INTEGER DEFAULT 0,
                     success     INTEGER DEFAULT 0,
                     fail        INTEGER DEFAULT 0
@@ -228,7 +228,7 @@ class DBManager:
             logger.info(f"Config Diff 저장: {hostname} ({diff_lines}줄 변경)")
 
     # ------------------------------------------------------------------
-    # Read API (CLI history / diff 커맨드용)
+    # Read API
     # ------------------------------------------------------------------
 
     def get_recent_runs(self, limit: int = 5) -> list:
@@ -254,17 +254,20 @@ class DBManager:
         return rows
 
     def get_recent_diffs(self, limit: int = 10) -> list:
-        """최근 Config Diff 이력을 반환합니다."""
+        """최근 Config Diff 이력을 반환합니다.
+
+        run_id 포함 — 대시보드 이력 테이블의 Config Diff 건수 집계에 사용됩니다.
+        """
         rows = self._conn.execute(
-            """SELECT hostname, ip, diff_lines, diff_content, previous_file,
-                      current_file, detected_at
+            """SELECT run_id, hostname, ip, diff_lines, diff_content,
+                      previous_file, current_file, detected_at
                FROM config_diffs
                ORDER BY detected_at DESC
                LIMIT ?""",
             (limit,),
         ).fetchall()
         return rows
-    
+
     def get_run_diffs(self, run_id: int) -> list:
         """특정 run의 Config Diff 결과를 반환합니다. (v5.2)
 
@@ -287,6 +290,7 @@ class DBManager:
             (run_id,),
         ).fetchall()
         return rows
+
     # ------------------------------------------------------------------
     # Devices CRUD (v4.1)
     # ------------------------------------------------------------------
@@ -444,7 +448,7 @@ class DBManager:
 
         logger.info(f"settings.yaml 마이그레이션 완료: {count}대 추가")
         return count
-    
+
     # ------------------------------------------------------------------
     # Cleanup API (v4.4)
     # ------------------------------------------------------------------
