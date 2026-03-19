@@ -3,19 +3,14 @@
 
 {% block head %}
 <style>
-  /* ── 페이지 레이아웃 ── */
   .devices-layout {
     display: flex;
     gap: 24px;
     align-items: flex-start;
   }
 
-  .devices-main {
-    flex: 1;
-    min-width: 0;
-  }
+  .devices-main { flex: 1; min-width: 0; }
 
-  /* ── 헤더 (타이틀 + 추가 버튼) ── */
   .page-header {
     display: flex;
     align-items: center;
@@ -37,15 +32,13 @@
     transition: opacity 0.15s, background 0.15s;
   }
   .btn:hover { opacity: 0.85; }
-
-  .btn-primary  { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); color: #fff; }
   .btn-ghost {
     background: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border);
   }
   .btn-ghost:hover { color: var(--text); border-color: #444; opacity: 1; }
-
   .btn-danger-ghost {
     background: transparent;
     color: var(--danger);
@@ -55,7 +48,6 @@
   }
   .btn-danger-ghost:hover { background: rgba(239,68,68,0.08); opacity: 1; }
 
-  /* 아이콘 액션 버튼 */
   .btn-icon {
     background: transparent;
     border: 1px solid var(--border);
@@ -72,9 +64,12 @@
     padding: 0;
   }
   .btn-icon:hover { background: #2a2a2a; color: var(--text); border-color: #444; }
-  .btn-icon.danger:hover { background: rgba(239,68,68,0.08); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+  .btn-icon.danger:hover {
+    background: rgba(239,68,68,0.08);
+    color: var(--danger);
+    border-color: rgba(239,68,68,0.3);
+  }
 
-  /* ── 필터 바 ── */
   .filter-bar {
     display: flex;
     align-items: center;
@@ -102,10 +97,7 @@
   .btn-filter:hover { color: var(--text); border-color: #444; }
   .btn-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-  .search-input-wrap {
-    position: relative;
-    margin-left: auto;
-  }
+  .search-input-wrap { position: relative; margin-left: auto; }
 
   .search-icon {
     position: absolute;
@@ -139,18 +131,15 @@
     min-height: 18px;
   }
 
-  /* ── 장비 테이블 박스 (고정 높이 + 내부 스크롤) ── */
   .table-box {
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
   }
 
-  /* 컬럼 헤더 */
   .table-col-header {
     display: flex;
     align-items: center;
-    gap: 0;
     padding: 8px 16px;
     background: #111;
     border-bottom: 1px solid var(--border);
@@ -161,21 +150,17 @@
     text-transform: uppercase;
   }
 
-  /* 장비 목록 스크롤 영역 */
   .table-scroll {
     max-height: 520px;
     overflow-y: auto;
   }
-
   .table-scroll::-webkit-scrollbar { width: 6px; }
   .table-scroll::-webkit-scrollbar-track { background: transparent; }
   .table-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-  /* 장비 행 */
   .device-row {
     display: flex;
     align-items: center;
-    gap: 0;
     padding: 9px 16px;
     border-bottom: 1px solid #1a1a1a;
     font-size: 13px;
@@ -183,12 +168,10 @@
     transition: background 0.1s;
     cursor: pointer;
   }
-
   .device-row:last-child { border-bottom: none; }
   .device-row:hover { background: #161616; }
   .device-row.selected { background: rgba(59,130,246,0.07); }
 
-  /* 컬럼 너비 — 헤더/행 공통 */
   .col-group    { width: 80px;  flex-shrink: 0; text-align: center; }
   .col-hostname { width: 120px; flex-shrink: 0; text-align: center; color: var(--text); }
   .col-ip       { width: 150px; flex-shrink: 0; text-align: center; color: #888; }
@@ -196,13 +179,11 @@
   .col-desc     { flex: 1; text-align: center; color: #555; font-size: 12px; }
   .col-actions  { width: 72px;  flex-shrink: 0; text-align: center; }
 
-  /* 헤더 텍스트 색상 재정의 */
   .table-col-header .col-hostname,
   .table-col-header .col-ip,
   .table-col-header .col-type,
   .table-col-header .col-desc { color: #555; }
 
-  /* 검색어 하이라이트 */
   mark {
     background: rgba(59,130,246,0.25);
     color: var(--text);
@@ -219,7 +200,6 @@
     font-family: var(--mono);
     text-transform: uppercase;
   }
-
   .badge-mgmt  { background: #1a2a1e; color: #4ade80; }
   .badge-nexus { background: #1e1a2a; color: #a78bfa; }
   .badge-aci   { background: #2a1e1a; color: #fb923c; }
@@ -232,7 +212,7 @@
     font-size: 13px;
   }
 
-  /* ── 우측 슬라이드 패널 ── */
+  /* ── 우측 슬라이드 패널 — <aside> ── */
   .side-panel {
     width: 320px;
     flex-shrink: 0;
@@ -346,8 +326,8 @@
 
 <div class="devices-layout">
 
-  <!-- 장비 테이블 -->
-  <div class="devices-main">
+  <!-- 장비 목록 -->
+  <section aria-label="장비 목록" class="devices-main">
 
     <!-- 필터 바 -->
     <div class="filter-bar">
@@ -364,12 +344,9 @@
       </div>
     </div>
 
-    <!-- 결과 카운트 -->
     <div class="result-count" id="result-count"></div>
 
-    <!-- 테이블 박스 -->
     <div class="table-box">
-      <!-- 컬럼 헤더 -->
       <div class="table-col-header">
         <span class="col-group">그룹</span>
         <span class="col-hostname">HOST</span>
@@ -378,16 +355,15 @@
         <span class="col-desc">설명</span>
         <span class="col-actions">작업</span>
       </div>
-      <!-- 스크롤 영역 -->
       <div class="table-scroll" id="device-list">
         <div class="empty-state">불러오는 중...</div>
       </div>
     </div>
 
-  </div>
+  </section>
 
-  <!-- 우측 슬라이드 패널 -->
-  <div class="side-panel" id="side-panel">
+  <!-- 우측 슬라이드 패널 — <aside> : 본문과 직접 관련은 있으나 독립적 부가 정보 -->
+  <aside class="side-panel" id="side-panel">
     <div class="panel-header">
       <span class="panel-title" id="panel-title">장비 추가</span>
       <button class="panel-close" onclick="closePanel()">&#10005;</button>
@@ -438,7 +414,7 @@
               style="width:100%;justify-content:center;"
               onclick="confirmDeactivate()">비활성화 확인</button>
     </div>
-  </div>
+  </aside>
 
 </div>
 {% endblock %}
@@ -450,9 +426,6 @@
   let _allDevices  = [];
   let _activeGroup = 'all';
 
-  // ------------------------------------------------------------------
-  // 초기 로드
-  // ------------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', loadDevices);
 
   async function loadDevices() {
@@ -467,9 +440,6 @@
     }
   }
 
-  // ------------------------------------------------------------------
-  // 필터링
-  // ------------------------------------------------------------------
   function setGroupFilter(group) {
     _activeGroup = group;
     document.querySelectorAll('.btn-filter').forEach(btn => {
@@ -479,7 +449,7 @@
   }
 
   function applyFilter() {
-    const keyword = document.getElementById('ip-search').value.trim().toLowerCase();
+    const keyword  = document.getElementById('ip-search').value.trim().toLowerCase();
     const filtered = _allDevices.filter(d => {
       const groupMatch = _activeGroup === 'all' || d.group_name === _activeGroup;
       const ipMatch    = keyword === '' || d.ip.toLowerCase().includes(keyword);
@@ -489,9 +459,6 @@
     updateResultCount(filtered.length, _allDevices.length);
   }
 
-  // ------------------------------------------------------------------
-  // 렌더링
-  // ------------------------------------------------------------------
   function badgeClass(group) {
     const map = { mgmt: 'badge-mgmt', nexus: 'badge-nexus', aci: 'badge-aci' };
     return map[group] || 'badge-other';
@@ -531,13 +498,11 @@
         <span class="col-actions">
           <div style="display:flex;gap:6px;justify-content:center;"
                onclick="event.stopPropagation()">
-            <button class="btn-icon"
-                    title="수정"
+            <button class="btn-icon" title="수정"
                     onclick="openEditPanel(${d.id},'${d.group_name}','${d.device_type}','${d.ip}','${(d.description||'').replace(/'/g,"\\'")}')">
               ✎
             </button>
-            <button class="btn-icon danger"
-                    title="비활성화"
+            <button class="btn-icon danger" title="비활성화"
                     onclick="openDeactivate(${d.id},'${d.ip}')">
               ✕
             </button>
@@ -548,33 +513,26 @@
   }
 
   function updateResultCount(filtered, total) {
-    const el = document.getElementById('result-count');
-    el.textContent = filtered === total
+    document.getElementById('result-count').textContent = filtered === total
       ? `총 ${total}대`
       : `${filtered}대 / 전체 ${total}대`;
   }
 
-  // ------------------------------------------------------------------
-  // 행 선택
-  // ------------------------------------------------------------------
   function handleRowClick(id) {
     document.querySelectorAll('.device-row').forEach(r => r.classList.remove('selected'));
     const row = document.querySelector(`.device-row[data-id="${id}"]`);
     if (row) row.classList.add('selected');
   }
 
-  // ------------------------------------------------------------------
-  // 패널 열기 / 닫기
-  // ------------------------------------------------------------------
   function openAddPanel() {
     _mode = 'add';
     _editId = null;
     document.getElementById('panel-title').textContent = '장비 추가';
-    document.getElementById('btn-submit').textContent = '추가';
-    document.getElementById('f-group').value = 'mgmt';
-    document.getElementById('f-type').value = 'cisco_ios';
-    document.getElementById('f-ip').value = '';
-    document.getElementById('f-desc').value = '';
+    document.getElementById('btn-submit').textContent  = '추가';
+    document.getElementById('f-group').value  = 'mgmt';
+    document.getElementById('f-type').value   = 'cisco_ios';
+    document.getElementById('f-ip').value     = '';
+    document.getElementById('f-desc').value   = '';
     document.getElementById('delete-confirm').classList.remove('show');
     hideError();
     document.getElementById('side-panel').classList.add('open');
@@ -584,11 +542,11 @@
     _mode = 'edit';
     _editId = id;
     document.getElementById('panel-title').textContent = '장비 수정';
-    document.getElementById('btn-submit').textContent = '저장';
-    document.getElementById('f-group').value = group;
-    document.getElementById('f-type').value = type;
-    document.getElementById('f-ip').value = ip;
-    document.getElementById('f-desc').value = desc;
+    document.getElementById('btn-submit').textContent  = '저장';
+    document.getElementById('f-group').value  = group;
+    document.getElementById('f-type').value   = type;
+    document.getElementById('f-ip').value     = ip;
+    document.getElementById('f-desc').value   = desc;
     document.getElementById('delete-confirm').classList.remove('show');
     hideError();
     document.getElementById('side-panel').classList.add('open');
@@ -607,9 +565,6 @@
     _editId = null;
   }
 
-  // ------------------------------------------------------------------
-  // 폼 제출
-  // ------------------------------------------------------------------
   async function submitForm() {
     const body = {
       group_name:  document.getElementById('f-group').value,
@@ -642,9 +597,6 @@
     }
   }
 
-  // ------------------------------------------------------------------
-  // 비활성화
-  // ------------------------------------------------------------------
   async function confirmDeactivate() {
     if (!_editId) return;
     try {
@@ -662,9 +614,6 @@
     }
   }
 
-  // ------------------------------------------------------------------
-  // 에러
-  // ------------------------------------------------------------------
   function showError(msg) {
     const el = document.getElementById('form-error');
     el.textContent = msg;

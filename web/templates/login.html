@@ -10,7 +10,6 @@
     rel="stylesheet"
   />
   <style>
-    /* ── 변수 ──────────────────────────────────────────────── */
     :root {
       --bg:        #0f0f0f;
       --surface:   #1a1a1a;
@@ -26,7 +25,6 @@
       --radius:    12px;
     }
 
-    /* ── 리셋 ──────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -40,7 +38,7 @@
       overflow: hidden;
     }
 
-    /* ── 배경 그리드 패턴 ───────────────────────────────────── */
+    /* 배경 그리드 패턴 */
     body::before {
       content: '';
       position: fixed;
@@ -53,7 +51,7 @@
       z-index: 0;
     }
 
-    /* ── 중앙 글로우 ────────────────────────────────────────── */
+    /* 중앙 글로우 */
     body::after {
       content: '';
       position: fixed;
@@ -67,10 +65,18 @@
       z-index: 0;
     }
 
-    /* ── 카드 ───────────────────────────────────────────────── */
-    .card {
+    /* <main> — 카드 중앙 배치 */
+    .login-main {
       position: relative;
       z-index: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -82,10 +88,10 @@
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0);    }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── 헤더 ───────────────────────────────────────────────── */
+    /* <header> — 로고 영역 */
     .logo-wrap {
       display: flex;
       align-items: center;
@@ -114,11 +120,7 @@
       stroke-linejoin: round;
     }
 
-    .logo-text {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
+    .logo-text { display: flex; flex-direction: column; gap: 1px; }
 
     .logo-title {
       font-family: var(--mono);
@@ -128,19 +130,12 @@
       letter-spacing: .04em;
     }
 
-    .logo-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: .02em;
-    }
+    .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: .02em; }
 
-    /* ── 폼 타이틀 ──────────────────────────────────────────── */
-    .form-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
+    /* <form> — 폼 영역 */
+    .login-form { display: contents; }
+
+    .form-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 
     .form-desc {
       font-size: 13px;
@@ -149,10 +144,7 @@
       line-height: 1.5;
     }
 
-    /* ── 입력 ───────────────────────────────────────────────── */
-    .field {
-      margin-bottom: 16px;
-    }
+    .field { margin-bottom: 16px; }
 
     .field label {
       display: block;
@@ -164,9 +156,7 @@
       margin-bottom: 8px;
     }
 
-    .input-wrap {
-      position: relative;
-    }
+    .input-wrap { position: relative; }
 
     .input-wrap input {
       width: 100%;
@@ -186,11 +176,8 @@
       box-shadow: 0 0 0 3px rgba(59,130,246,.12);
     }
 
-    .input-wrap input::placeholder {
-      color: #3a3a3a;
-    }
+    .input-wrap input::placeholder { color: #3a3a3a; }
 
-    /* 비밀번호 토글 버튼 */
     .toggle-pw {
       position: absolute;
       right: 12px;
@@ -218,7 +205,6 @@
       stroke-linejoin: round;
     }
 
-    /* ── 에러 메시지 ─────────────────────────────────────────── */
     .error-msg {
       display: none;
       align-items: center;
@@ -245,7 +231,6 @@
       stroke-linejoin: round;
     }
 
-    /* shake 애니메이션 */
     @keyframes shake {
       0%,100% { transform: translateX(0); }
       20%      { transform: translateX(-6px); }
@@ -256,7 +241,6 @@
 
     .shake { animation: shake .35s ease; }
 
-    /* ── 로그인 버튼 ─────────────────────────────────────────── */
     .btn-login {
       width: 100%;
       padding: 12px;
@@ -288,14 +272,12 @@
       animation: spin .6s linear infinite;
     }
 
-    .btn-login.loading .spinner { display: block; }
+    .btn-login.loading .spinner  { display: block; }
     .btn-login.loading .btn-text { display: none; }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── 하단 정보 ──────────────────────────────────────────── */
+    /* <footer> — 하단 정보 */
     .footer-info {
       margin-top: 24px;
       padding-top: 20px;
@@ -338,108 +320,109 @@
 </head>
 <body>
 
-<div class="card" id="loginCard">
+<!-- 로그인 페이지 전체를 <main>으로 감싸 콘텐츠 진입점 명시 -->
+<main class="login-main">
+  <div class="card" id="loginCard">
 
-  <!-- 로고 -->
-  <div class="logo-wrap">
-    <div class="logo-icon">
-      <!-- 네트워크 아이콘 -->
-      <svg viewBox="0 0 24 24">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-    </div>
-    <div class="logo-text">
-      <span class="logo-title">NBT</span>
-      <span class="logo-sub">Network Backup Tools</span>
-    </div>
-  </div>
-
-  <!-- 폼 타이틀 -->
-  <div class="form-title">로그인</div>
-  <div class="form-desc">관리자 비밀번호를 입력하세요.</div>
-
-  <!-- 에러 메시지 -->
-  <div class="error-msg" id="errorMsg">
-    <svg viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    <span id="errorText">비밀번호가 올바르지 않습니다.</span>
-  </div>
-
-  <!-- 비밀번호 입력 -->
-  <div class="field">
-    <label for="password">Password</label>
-    <div class="input-wrap">
-      <input
-        type="password"
-        id="password"
-        placeholder="••••••••"
-        autocomplete="current-password"
-        autofocus
-      />
-      <button type="button" class="toggle-pw" id="togglePw" tabindex="-1" aria-label="비밀번호 표시/숨기기">
-        <!-- eye 아이콘 -->
-        <svg id="iconEye" viewBox="0 0 24 24">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
+    <!-- 로고 영역 — <header> -->
+    <header class="logo-wrap">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
-        <!-- eye-off 아이콘 (숨김) -->
-        <svg id="iconEyeOff" viewBox="0 0 24 24" style="display:none">
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
+      </div>
+      <div class="logo-text">
+        <span class="logo-title">NBT</span>
+        <span class="logo-sub">Network Backup Tools</span>
+      </div>
+    </header>
+
+    <!-- 폼 영역 — <form> -->
+    <form class="login-form" id="loginForm" onsubmit="handleSubmit(event)">
+      <p class="form-title">로그인</p>
+      <p class="form-desc">관리자 비밀번호를 입력하세요.</p>
+
+      <!-- 에러 메시지 -->
+      <div class="error-msg" id="errorMsg" role="alert">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
+        <span id="errorText">비밀번호가 올바르지 않습니다.</span>
+      </div>
+
+      <!-- 비밀번호 입력 -->
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            autofocus
+          />
+          <button type="button" class="toggle-pw" id="togglePw"
+                  tabindex="-1" aria-label="비밀번호 표시/숨기기">
+            <svg id="iconEye" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="iconEyeOff" viewBox="0 0 24 24" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 로그인 버튼 -->
+      <button type="submit" class="btn-login" id="loginBtn">
+        <div class="spinner"></div>
+        <span class="btn-text">로그인</span>
       </button>
-    </div>
+    </form>
+
+    <!-- 하단 정보 — <footer> -->
+    <footer class="footer-info">
+      <span class="version-tag">v5.3.0</span>
+      <span class="status-dot">서버 정상</span>
+    </footer>
+
   </div>
-
-  <!-- 로그인 버튼 -->
-  <button class="btn-login" id="loginBtn">
-    <div class="spinner"></div>
-    <span class="btn-text">로그인</span>
-  </button>
-
-  <!-- 하단 정보 -->
-  <div class="footer-info">
-    <span class="version-tag">v4.3.0</span>
-    <span class="status-dot">서버 정상</span>
-  </div>
-
-</div>
+</main>
 
 <script>
-  const pwInput   = document.getElementById('password');
-  const loginBtn  = document.getElementById('loginBtn');
-  const errorMsg  = document.getElementById('errorMsg');
-  const errorText = document.getElementById('errorText');
-  const card      = document.getElementById('loginCard');
-  const togglePw  = document.getElementById('togglePw');
+  const pwInput    = document.getElementById('password');
+  const loginBtn   = document.getElementById('loginBtn');
+  const errorMsg   = document.getElementById('errorMsg');
+  const errorText  = document.getElementById('errorText');
+  const card       = document.getElementById('loginCard');
+  const togglePw   = document.getElementById('togglePw');
   const iconEye    = document.getElementById('iconEye');
   const iconEyeOff = document.getElementById('iconEyeOff');
 
-  // ── 비밀번호 표시/숨기기 ────────────────────────────────────
+  // 비밀번호 표시/숨기기
   togglePw.addEventListener('click', () => {
-    const isHidden = pwInput.type === 'password';
-    pwInput.type = isHidden ? 'text' : 'password';
-    iconEye.style.display    = isHidden ? 'none'  : '';
-    iconEyeOff.style.display = isHidden ? ''      : 'none';
+    const isHidden   = pwInput.type === 'password';
+    pwInput.type     = isHidden ? 'text' : 'password';
+    iconEye.style.display    = isHidden ? 'none' : '';
+    iconEyeOff.style.display = isHidden ? ''     : 'none';
   });
 
-  // ── 엔터 키 지원 ─────────────────────────────────────────────
-  pwInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doLogin();
-  });
+  // <form> onsubmit으로 통합 (Enter 키 + 버튼 클릭 모두 처리)
+  async function handleSubmit(event) {
+    event.preventDefault();
+    await doLogin();
+  }
 
-  loginBtn.addEventListener('click', doLogin);
-
-  // ── 로그인 요청 ──────────────────────────────────────────────
   async function doLogin() {
     const password = pwInput.value.trim();
     if (!password) return;
 
-    // 로딩 상태
     loginBtn.classList.add('loading');
     loginBtn.disabled = true;
     errorMsg.classList.remove('visible');
@@ -452,19 +435,16 @@
       });
 
       if (res.ok) {
-        // 성공 → 대시보드로 이동
         window.location.href = '/';
         return;
       }
 
-      // 실패 처리
       const data = await res.json().catch(() => ({}));
       errorText.textContent = data.detail || '로그인에 실패했습니다.';
       errorMsg.classList.add('visible');
 
-      // shake 애니메이션
       card.classList.remove('shake');
-      void card.offsetWidth; // reflow
+      void card.offsetWidth;
       card.classList.add('shake');
 
       pwInput.value = '';

@@ -4,7 +4,6 @@
 
 {% block head %}
 <style>
-  /* ── 레이아웃 ───────────────────────────────────────────── */
   .analyze-wrap {
     display: grid;
     grid-template-columns: 320px 1fr;
@@ -12,7 +11,7 @@
     align-items: start;
   }
 
-  /* ── 탭 ─────────────────────────────────────────────────── */
+  /* ── 탭 ── */
   .tab-bar {
     display: flex;
     gap: 4px;
@@ -49,7 +48,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* ── 왼쪽 패널 ──────────────────────────────────────────── */
+  /* ── 왼쪽 패널 ── */
   .panel-left { display: flex; flex-direction: column; gap: 16px; }
 
   .section-title {
@@ -62,7 +61,6 @@
   }
 
   .form-group { display: flex; flex-direction: column; gap: 6px; }
-
   .form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
 
   .form-select {
@@ -77,11 +75,9 @@
     outline: none;
     transition: border-color .15s;
   }
-
   .form-select:focus { border-color: var(--accent); }
   .form-select option { background: #1a1a1a; }
 
-  /* 파일 목록 */
   .file-list {
     display: flex;
     flex-direction: column;
@@ -101,8 +97,7 @@
     transition: border-color .15s, background .15s;
     background: var(--bg);
   }
-
-  .file-item:hover  { border-color: var(--accent); background: rgba(59,130,246,.05); }
+  .file-item:hover    { border-color: var(--accent); background: rgba(59,130,246,.05); }
   .file-item.selected { border-color: var(--accent); background: rgba(59,130,246,.08); }
 
   .file-item svg {
@@ -111,7 +106,6 @@
     stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     flex-shrink: 0;
   }
-
   .file-item.selected svg { stroke: var(--accent); }
 
   .file-name {
@@ -120,32 +114,24 @@
     color: var(--text-muted);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-
   .file-item.selected .file-name { color: var(--accent); }
 
-  .file-empty {
-    font-size: 12px; color: var(--text-muted);
-    text-align: center; padding: 20px 0;
-  }
+  .file-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px 0; }
 
-  /* 인덱싱 상태 */
   .index-status {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 12px; border-radius: var(--radius-sm);
     font-size: 12px; font-weight: 500;
   }
-
   .index-status.idle    { background: rgba(107,114,128,.1); color: var(--text-muted); }
   .index-status.success { background: rgba(34,197,94,.1);  color: var(--success); }
   .index-status.error   { background: rgba(239,68,68,.1);  color: var(--danger); }
   .index-status.loading { background: rgba(59,130,246,.1); color: var(--accent); }
-
   .index-status svg {
     width: 13px; height: 13px; stroke: currentColor; fill: none;
     stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
   }
 
-  /* ── 비교 분석 — 장비 체크박스 목록 ────────────────────── */
   .compare-device-list {
     display: flex; flex-direction: column; gap: 6px;
     max-height: 280px; overflow-y: auto;
@@ -159,34 +145,25 @@
     background: var(--bg);
     transition: border-color .15s;
   }
-
   .compare-device-item:has(input:checked) {
     border-color: var(--accent);
     background: rgba(59,130,246,.05);
   }
-
   .compare-device-item input[type="checkbox"] {
     width: 14px; height: 14px;
     accent-color: var(--accent);
     cursor: pointer; flex-shrink: 0;
   }
-
   .compare-device-info { flex: 1; overflow: hidden; }
-
   .compare-device-name {
-    font-size: 13px; font-weight: 500;
-    color: var(--text);
+    font-size: 13px; font-weight: 500; color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-
-  .compare-device-status {
-    font-size: 11px; margin-top: 2px;
-  }
-
+  .compare-device-status { font-size: 11px; margin-top: 2px; }
   .compare-device-status.indexed   { color: var(--success); }
   .compare-device-status.unindexed { color: var(--text-muted); }
 
-  /* ── 오른쪽 패널 ────────────────────────────────────────── */
+  /* ── 오른쪽 패널 ── */
   .panel-right { display: flex; flex-direction: column; gap: 16px; }
 
   .question-area {
@@ -200,7 +177,6 @@
     resize: vertical; outline: none;
     transition: border-color .15s; line-height: 1.6;
   }
-
   .question-area:focus { border-color: var(--accent); }
   .question-area::placeholder { color: var(--text-muted); }
 
@@ -218,19 +194,14 @@
     align-items: center; justify-content: center;
     height: 240px; gap: 10px; color: var(--text-muted);
   }
-
   .answer-empty svg {
     width: 36px; height: 36px;
     stroke: var(--border); fill: none;
     stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
   }
-
   .answer-empty p { font-size: 13px; }
 
-  .answer-meta {
-    display: flex; align-items: center;
-    gap: 8px; flex-wrap: wrap;
-  }
+  .answer-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
   .typing::after {
     content: '▌';
@@ -238,19 +209,16 @@
     color: var(--accent); margin-left: 2px;
   }
 
-  @keyframes blink  { 50% { opacity: 0; } }
-  @keyframes spin   { to  { transform: rotate(360deg); } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes spin  { to  { transform: rotate(360deg); } }
 
   .file-list::-webkit-scrollbar,
   .compare-device-list::-webkit-scrollbar { width: 4px; }
   .file-list::-webkit-scrollbar-track,
   .compare-device-list::-webkit-scrollbar-track { background: transparent; }
   .file-list::-webkit-scrollbar-thumb,
-  .compare-device-list::-webkit-scrollbar-thumb {
-    background: var(--border); border-radius: 2px;
-  }
+  .compare-device-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* ── 분석 진행 상태 표시 ────────────────────────────────── */
   .analysis-progress {
     display: none;
     flex-direction: column;
@@ -260,7 +228,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
   }
-
   .analysis-progress.active { display: flex; }
 
   .progress-label {
@@ -271,7 +238,6 @@
     justify-content: space-between;
     align-items: center;
   }
-
   .progress-label .elapsed { color: var(--text); font-weight: 600; }
   .progress-label .percent { color: var(--accent); }
 
@@ -281,7 +247,6 @@
     border-radius: 3px;
     overflow: hidden;
   }
-
   .progress-fill {
     height: 100%;
     width: 0%;
@@ -289,12 +254,7 @@
     border-radius: 3px;
     transition: width 0.4s ease;
   }
-
-  .progress-fill.complete {
-    background: var(--success);
-    transition: width 0.2s ease;
-  }
-
+  .progress-fill.complete { background: var(--success); transition: width 0.2s ease; }
 </style>
 {% endblock %}
 
@@ -306,21 +266,19 @@
   </p>
 </div>
 
-<!-- 탭 -->
-<div class="tab-bar">
+<!-- 탭 네비게이션 — <nav> -->
+<nav class="tab-bar" aria-label="분석 탭">
   <button class="tab-btn active" data-tab="single">단일 분석</button>
   <button class="tab-btn"        data-tab="compare">비교 분석</button>
-</div>
+</nav>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
 <!-- 단일 분석 탭                                                    -->
 <!-- ══════════════════════════════════════════════════════════════ -->
-<div class="tab-panel active" id="tab-single">
+<section class="tab-panel active" id="tab-single" aria-label="단일 분석">
 <div class="analyze-wrap">
 
-  <!-- 왼쪽 -->
   <div class="panel-left">
-
     <div class="card">
       <p class="section-title">장비 선택</p>
       <div class="form-group">
@@ -356,10 +314,8 @@
         인덱싱
       </button>
     </div>
-
   </div>
 
-  <!-- 오른쪽 -->
   <div class="panel-right">
     <div class="card">
       <p class="section-title">질문</p>
@@ -383,7 +339,6 @@
           <span class="badge badge-gray" id="metaChunks"></span>
         </div>
       </div>
-      <!-- 분석 진행 표시 (단일) -->
       <div class="analysis-progress" id="analysisProgress">
         <div class="progress-label">
           <span>Ollama 분석 중...</span>
@@ -410,17 +365,15 @@
   </div>
 
 </div>
-</div>
+</section>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
 <!-- 비교 분석 탭                                                    -->
 <!-- ══════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-compare">
+<section class="tab-panel" id="tab-compare" aria-label="비교 분석">
 <div class="analyze-wrap">
 
-  <!-- 왼쪽 -->
   <div class="panel-left">
-
     <div class="card">
       <p class="section-title">장비 선택</p>
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.6;">
@@ -439,15 +392,13 @@
         장비를 선택하면 인덱싱 현황이 표시됩니다.
       </div>
     </div>
-
   </div>
 
-  <!-- 오른쪽 -->
   <div class="panel-right">
     <div class="card">
       <p class="section-title">비교 질문</p>
       <textarea class="question-area" id="compareQuestionInput"
-        placeholder="예) OSPF neighbor 설정을 비교해줘. / 라우팅 설정 차이를 분석해줘. / ACL 설정이 다른 부분을 찾아줘."></textarea>
+        placeholder="예) OSPF neighbor 설정을 비교해줘. / 라우팅 설정 차이를 분석해줘."></textarea>
       <div style="display:flex;justify-content:flex-end;margin-top:10px;">
         <button class="btn btn-primary" id="compareBtn" disabled>
           <svg viewBox="0 0 24 24">
@@ -464,12 +415,11 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <p class="section-title" style="margin-bottom:0;">비교 결과</p>
         <div class="answer-meta" id="compareAnswerMeta" style="display:none;">
-          <span class="badge badge-gray"    id="cMetaModel"></span>
-          <span class="badge badge-blue"    id="cMetaDevices"></span>
-          <span class="badge badge-gray"    id="cMetaChunks"></span>
+          <span class="badge badge-gray" id="cMetaModel"></span>
+          <span class="badge badge-blue" id="cMetaDevices"></span>
+          <span class="badge badge-gray" id="cMetaChunks"></span>
         </div>
       </div>
-      <!-- 분석 진행 표시 (비교) -->
       <div class="analysis-progress" id="compareAnalysisProgress">
         <div class="progress-label">
           <span>Ollama 분석 중...</span>
@@ -498,7 +448,7 @@
   </div>
 
 </div>
-</div>
+</section>
 {% endblock %}
 
 {% block scripts %}
@@ -506,12 +456,8 @@
   // ── 공통 상태 ────────────────────────────────────────────────
   let allDevices       = [];
   let indexedSet       = new Set();
-
-  // ── 단일 분석 상태 ───────────────────────────────────────────
   let selectedFilePath = null;
   let selectedHostname = null;
-
-  // ── 타이머 상태 ─────────────────────────────────────────────
   let _analysisTimer   = null;
 
   const deviceSelect   = document.getElementById('deviceSelect');
@@ -524,7 +470,6 @@
   const answerBox      = document.getElementById('answerBox');
   const answerMeta     = document.getElementById('answerMeta');
 
-  // ── 비교 분석 상태 ───────────────────────────────────────────
   const compareDeviceList    = document.getElementById('compareDeviceList');
   const compareIndexStatus   = document.getElementById('compareIndexStatus');
   const compareQuestionInput = document.getElementById('compareQuestionInput');
@@ -543,7 +488,7 @@
     });
   });
 
-  // ── 초기화 — 장비 목록 로드 ─────────────────────────────────
+  // ── 장비 목록 로드 ───────────────────────────────────────────
   async function loadDevices() {
     try {
       const res = await fetch('/api/devices');
@@ -560,13 +505,11 @@
       });
 
       renderCompareDeviceList();
-
     } catch (e) {
       console.error('장비 목록 로드 실패:', e);
     }
   }
 
-  // ── 비교 분석 — 장비 체크박스 렌더링 ────────────────────────
   function renderCompareDeviceList() {
     compareDeviceList.innerHTML = '';
 
@@ -578,10 +521,9 @@
     allDevices.forEach(d => {
       const hn        = d.last_hostname || d.hostname || d.ip;
       const isIndexed = indexedSet.has(hn);
-
-      const item = document.createElement('div');
-      item.className = 'compare-device-item';
-      item.innerHTML = `
+      const item      = document.createElement('div');
+      item.className  = 'compare-device-item';
+      item.innerHTML  = `
         <input type="checkbox" value="${d.ip}" data-hostname="${hn}" id="chk_${d.ip}">
         <div class="compare-device-info">
           <div class="compare-device-name">${hn}  (${d.ip})</div>
@@ -589,17 +531,14 @@
             ${isIndexed ? '● 인덱싱 완료' : '○ 미인덱싱'}
           </div>
         </div>`;
-
       item.querySelector('input').addEventListener('change', updateCompareBtn);
       compareDeviceList.appendChild(item);
     });
   }
 
-  // ── 비교 분석 — 버튼 활성화 조건 ────────────────────────────
   function updateCompareBtn() {
     const checked = getCheckedDevices();
-    compareBtn.disabled =
-      checked.length < 2 || !compareQuestionInput.value.trim();
+    compareBtn.disabled = checked.length < 2 || !compareQuestionInput.value.trim();
 
     if (checked.length === 0) {
       compareIndexStatus.textContent = '장비를 선택하면 인덱싱 현황이 표시됩니다.';
@@ -622,7 +561,7 @@
 
   compareQuestionInput.addEventListener('input', updateCompareBtn);
 
-  // ── 단일 분석 — 장비 선택 ───────────────────────────────────
+  // ── 장비 선택 ────────────────────────────────────────────────
   deviceSelect.addEventListener('change', async function () {
     const ip       = this.value;
     const hostname = this.options[this.selectedIndex]?.dataset.hostname || '';
@@ -679,9 +618,9 @@
 
       fileList.innerHTML = '';
       unique.forEach(f => {
-        const item = document.createElement('div');
-        item.className        = 'file-item';
-        item.dataset.path     = f.file_path;
+        const item         = document.createElement('div');
+        item.className     = 'file-item';
+        item.dataset.path  = f.file_path;
         item.dataset.hostname = f.hostname;
 
         const parts       = f.file_path.split('/');
@@ -709,7 +648,6 @@
     }
   });
 
-  // ── 단일 분석 — 파일 선택 ───────────────────────────────────
   function selectFile(el, filePath, hostname) {
     document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
     el.classList.add('selected');
@@ -720,10 +658,8 @@
     updateAnalyzeBtn();
   }
 
-  // ── 단일 분석 — 인덱싱 ──────────────────────────────────────
   indexBtn.addEventListener('click', async function () {
     if (!selectedFilePath) return;
-
     setIndexStatus('loading', '인덱싱 중...');
     indexBtn.disabled   = true;
     analyzeBtn.disabled = true;
@@ -732,14 +668,9 @@
       const res = await fetch('/api/analyze/index', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_path:       selectedFilePath,
-          collection_name: selectedHostname,
-        }),
+        body: JSON.stringify({ file_path: selectedFilePath, collection_name: selectedHostname }),
       });
-
       if (handle401(res)) return;
-
       if (res.ok) {
         const data = await res.json();
         setIndexStatus('success', `인덱싱 완료 — ${data.chunks}개 청크 저장됨`);
@@ -758,12 +689,10 @@
     }
   });
 
-  // ── 단일 분석 — 분석 ────────────────────────────────────────
   analyzeBtn.addEventListener('click', async function () {
     const question = questionInput.value.trim();
     if (!question || !selectedFilePath) return;
 
-    // 분석 시작 UI
     analyzeBtn.disabled       = true;
     analyzeBtn.textContent    = '분석 중...';
     answerEmpty.style.display = 'none';
@@ -771,7 +700,6 @@
     answerBox.className       = 'answer-box';
     answerMeta.style.display  = 'none';
 
-    // 경과 시간 타이머 시작
     startAnalysisTimer('analysisProgress', 'progressElapsed', 'progressPercent', 'progressFill');
 
     try {
@@ -780,13 +708,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: selectedFilePath, question }),
       });
-
       if (handle401(res)) return;
 
       if (res.ok) {
         const data = await res.json();
-
-        // 타이머 중단 후 타이핑 효과
         stopAnalysisTimer('analysisProgress', 'progressFill', 'progressPercent');
         answerBox.textContent = '';
         answerBox.className   = 'answer-box typing';
@@ -794,8 +719,7 @@
         answerBox.className   = 'answer-box';
 
         document.getElementById('metaModel').textContent  = data.model;
-        document.getElementById('metaChunks').textContent =
-          data.rag_used ? `청크 ${data.chunks}개` : '전체 파일';
+        document.getElementById('metaChunks').textContent = data.rag_used ? `청크 ${data.chunks}개` : '전체 파일';
         const ragBadge = document.getElementById('metaRag');
         ragBadge.className   = data.rag_used ? 'badge badge-success' : 'badge badge-gray';
         ragBadge.textContent = data.rag_used ? 'RAG' : 'Fallback';
@@ -811,21 +735,17 @@
       answerBox.className   = 'answer-box';
       answerBox.textContent = `오류: ${e.message}`;
     } finally {
-      analyzeBtn.disabled     = false;
-      analyzeBtn.innerHTML    = `
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/>
-          <path d="M21 21l-4.35-4.35"/></svg>
-        분석`;
+      analyzeBtn.disabled  = false;
+      analyzeBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/></svg>분석`;
     }
   });
 
-  // ── 비교 분석 — 분석 ────────────────────────────────────────
   compareBtn.addEventListener('click', async function () {
     const question = compareQuestionInput.value.trim();
     const checked  = getCheckedDevices();
     if (!question || checked.length < 2) return;
 
-    // 분석 시작 UI
     compareBtn.disabled              = true;
     compareBtn.textContent           = '분석 중...';
     compareAnswerEmpty.style.display = 'none';
@@ -833,7 +753,6 @@
     compareAnswerBox.className       = 'answer-box';
     compareAnswerMeta.style.display  = 'none';
 
-    // 경과 시간 타이머 시작
     startAnalysisTimer('compareAnalysisProgress', 'cProgressElapsed', 'cProgressPercent', 'cProgressFill');
 
     try {
@@ -845,13 +764,10 @@
           question,
         }),
       });
-
       if (handle401(res)) return;
 
       if (res.ok) {
         const data = await res.json();
-
-        // 타이머 중단 후 타이핑 효과
         stopAnalysisTimer('compareAnalysisProgress', 'cProgressFill', 'cProgressPercent');
         compareAnswerBox.textContent = '';
         compareAnswerBox.className   = 'answer-box typing';
@@ -859,10 +775,8 @@
         compareAnswerBox.className   = 'answer-box';
 
         document.getElementById('cMetaModel').textContent   = data.model;
-        document.getElementById('cMetaDevices').textContent =
-          `장비 ${data.devices.length}대`;
-        document.getElementById('cMetaChunks').textContent  =
-          `청크 ${data.chunks}개`;
+        document.getElementById('cMetaDevices').textContent = `장비 ${data.devices.length}대`;
+        document.getElementById('cMetaChunks').textContent  = `청크 ${data.chunks}개`;
         compareAnswerMeta.style.display = 'flex';
       } else {
         const err = await res.json();
@@ -876,17 +790,13 @@
       compareAnswerBox.textContent = `오류: ${e.message}`;
     } finally {
       compareBtn.disabled  = false;
-      compareBtn.innerHTML = `
-        <svg viewBox="0 0 24 24">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6"  y1="20" x2="6"  y2="14"/>
-        </svg>
-        비교 분석`;
+      compareBtn.innerHTML = `<svg viewBox="0 0 24 24">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/></svg>비교 분석`;
     }
   });
 
-  // ── 헬퍼 ────────────────────────────────────────────────────
   questionInput.addEventListener('input', updateAnalyzeBtn);
 
   function updateAnalyzeBtn() {
@@ -894,9 +804,7 @@
   }
 
   function resetIndexStatus() {
-    setIndexStatus('idle', selectedFilePath
-      ? '인덱싱 버튼을 눌러 시작하세요.'
-      : '파일을 선택하세요.');
+    setIndexStatus('idle', selectedFilePath ? '인덱싱 버튼을 눌러 시작하세요.' : '파일을 선택하세요.');
   }
 
   function setIndexStatus(type, text) {
@@ -918,7 +826,6 @@
     }
   }
 
-  // ── 타이머 / 프로그레스 헬퍼 ────────────────────────────────
   function _formatElapsed(sec) {
     const m = String(Math.floor(sec / 60)).padStart(2, '0');
     const s = String(sec % 60).padStart(2, '0');
@@ -931,11 +838,10 @@
     const percentEl  = document.getElementById(percentId);
     const fillEl     = document.getElementById(fillId);
 
-    // 초기화
-    fillEl.className    = 'progress-fill';
-    fillEl.style.width  = '0%';
-    percentEl.textContent  = '0%';
-    elapsedEl.textContent  = '00:00';
+    fillEl.className      = 'progress-fill';
+    fillEl.style.width    = '0%';
+    percentEl.textContent = '0%';
+    elapsedEl.textContent = '00:00';
     progressEl.classList.add('active');
 
     let elapsed = 0;
@@ -945,15 +851,9 @@
       elapsed++;
       elapsedEl.textContent = _formatElapsed(elapsed);
 
-      // 85%까지만 자동 증가 — 응답 전 100% 도달 방지
-      // 초반(0~30%): 빠르게 / 중반(30~70%): 보통 / 후반(70~85%): 느리게
-      if (percent < 30) {
-        percent = Math.min(percent + 3.0, 30);
-      } else if (percent < 70) {
-        percent = Math.min(percent + 1.5, 70);
-      } else if (percent < 85) {
-        percent = Math.min(percent + 0.5, 85);
-      }
+      if      (percent < 30) { percent = Math.min(percent + 3.0, 30); }
+      else if (percent < 70) { percent = Math.min(percent + 1.5, 70); }
+      else if (percent < 85) { percent = Math.min(percent + 0.5, 85); }
 
       fillEl.style.width    = `${percent}%`;
       percentEl.textContent = `${Math.floor(percent)}%`;
@@ -961,16 +861,12 @@
   }
 
   function stopAnalysisTimer(progressId, fillId, percentId) {
-    if (_analysisTimer) {
-      clearInterval(_analysisTimer);
-      _analysisTimer = null;
-    }
+    if (_analysisTimer) { clearInterval(_analysisTimer); _analysisTimer = null; }
 
     const progressEl = document.getElementById(progressId);
     const fillEl     = document.getElementById(fillId);
     const percentEl  = document.getElementById(percentId);
 
-    // 100%로 점프 후 0.6초 뒤 숨김
     fillEl.className      = 'progress-fill complete';
     fillEl.style.width    = '100%';
     percentEl.textContent = '100%';
@@ -982,7 +878,6 @@
     }, 3000);
   }
 
-  // ── 시작 ────────────────────────────────────────────────────
   loadDevices();
 </script>
 {% endblock %}

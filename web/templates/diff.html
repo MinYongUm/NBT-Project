@@ -43,6 +43,7 @@
     font-family: var(--mono);
     transition: border-color 0.15s, color 0.15s;
   }
+
   .toggle-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
@@ -55,9 +56,7 @@
     margin-bottom: 20px;
   }
 
-  .page-title {
-    margin-bottom: 24px;
-  }
+  .page-title { margin-bottom: 24px; }
 
   .limit-select {
     background: var(--surface);
@@ -78,33 +77,28 @@
     font-size: 14px;
   }
 
-  /* ── Diff 뷰어 모달 ── */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open {
-    display: flex;
-  }
-
-  .modal {
-    background: var(--surface);
+  /* ── Diff 뷰어 <dialog> ── */
+  #diff-modal {
+    padding: 0;
     border: 1px solid var(--border);
     border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
     width: 96vw;
     max-width: 1400px;
-    height: 85vh;
-    display: flex;
+    max-height: 85vh;
+    /* showModal()이 position:fixed를 자동 적용 → inset+margin으로 중앙 배치 */
+    inset: 0;
+    margin: auto;
     flex-direction: column;
     overflow: hidden;
+    /* display는 [open] 상태에서만 flex로 설정 — 기본값은 브라우저 none 유지 */
   }
 
-  /* 모달 헤더 */
+  #diff-modal[open] { display: flex; }
+
+  #diff-modal::backdrop { background: rgba(0, 0, 0, 0.75); }
+
   .modal-header {
     display: flex;
     align-items: center;
@@ -161,9 +155,9 @@
     transition: color 0.15s;
     flex-shrink: 0;
   }
+
   .modal-close:hover { color: var(--text); }
 
-  /* 좌/우 컬럼 헤더 (sticky) */
   .split-header {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -183,15 +177,9 @@
     gap: 6px;
   }
 
-  .split-header-cell:first-child {
-    border-right: 1px solid var(--border);
-  }
+  .split-header-cell:first-child { border-right: 1px solid var(--border); }
 
-  /* 모달 바디 */
-  .modal-body {
-    flex: 1;
-    overflow: auto;
-  }
+  .modal-body { flex: 1; overflow: auto; }
 
   /* ── Split View Diff 테이블 ── */
   .diff-split-table {
@@ -209,7 +197,6 @@
     vertical-align: top;
   }
 
-  /* 라인 번호 셀 */
   .ln {
     width: 48px;
     min-width: 48px;
@@ -220,7 +207,6 @@
     font-size: 11px;
   }
 
-  /* 코드 내용 셀 */
   .code {
     padding: 1px 12px 1px 6px !important;
     white-space: pre;
@@ -228,7 +214,6 @@
     text-overflow: ellipsis;
   }
 
-  /* 좌우 분리선 */
   .divider {
     width: 1px;
     min-width: 1px;
@@ -236,30 +221,21 @@
     padding: 0 !important;
   }
 
-  /* 제거(좌측) */
   .td-remove-ln   { background: rgba(239,68,68,0.08); color: #7a3a3a; }
   .td-remove-code { background: rgba(239,68,68,0.06); color: #f0a8a8; }
+  .td-add-ln      { background: rgba(34,197,94,0.08); color: #3a7a4a; }
+  .td-add-code    { background: rgba(34,197,94,0.06); color: #a8f0b8; }
+  .td-ctx-ln      { background: transparent; }
+  .td-ctx-code    { background: transparent; color: var(--text-muted); }
+  .td-empty-ln    { background: #0d0d0d; }
+  .td-empty-code  { background: #0d0d0d; }
 
-  /* 추가(우측) */
-  .td-add-ln   { background: rgba(34,197,94,0.08); color: #3a7a4a; }
-  .td-add-code { background: rgba(34,197,94,0.06); color: #a8f0b8; }
-
-  /* 컨텍스트 */
-  .td-ctx-ln   { background: transparent; }
-  .td-ctx-code { background: transparent; color: var(--text-muted); }
-
-  /* 빈 셀 (매칭 없는 쪽) */
-  .td-empty-ln   { background: #0d0d0d; }
-  .td-empty-code { background: #0d0d0d; }
-
-  /* @@ 헝크 헤더 (전체 너비) */
   .td-hunk {
     background: rgba(59,130,246,0.06);
     color: #93b4e8;
     padding: 1px 12px !important;
   }
 
-  /* 로딩/에러 */
   .modal-status {
     display: flex;
     align-items: center;
@@ -275,15 +251,19 @@
 {% block content %}
 <h1 class="page-title">Config Diff</h1>
 
-<div class="controls">
-  <select class="limit-select" id="limit-select" onchange="loadDiffs()">
-    <option value="10">최근 10건</option>
-    <option value="20">최근 20건</option>
-    <option value="50">최근 50건</option>
-  </select>
-</div>
+<!-- 조회 설정 -->
+<section aria-label="조회 설정">
+  <div class="controls">
+    <select class="limit-select" id="limit-select" onchange="loadDiffs()">
+      <option value="10">최근 10건</option>
+      <option value="20">최근 20건</option>
+      <option value="50">최근 50건</option>
+    </select>
+  </div>
+</section>
 
-<div class="card">
+<!-- Config Diff 목록 -->
+<section aria-label="Config Diff 목록" class="card">
   <table>
     <thead>
       <tr>
@@ -298,38 +278,32 @@
       <tr><td colspan="5" class="empty">데이터 로딩 중...</td></tr>
     </tbody>
   </table>
-</div>
+</section>
 
-<!-- Diff 뷰어 모달 -->
-<div class="modal-overlay" id="diff-modal" onclick="handleOverlayClick(event)">
-  <div class="modal">
-
-    <div class="modal-header">
-      <div class="modal-meta">
-        <span class="modal-hostname" id="modal-hostname">—</span>
-
-      </div>
-      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+<!-- Diff 뷰어 모달 — <dialog> semantic tag -->
+<dialog id="diff-modal">
+  <header class="modal-header">
+    <div class="modal-meta">
+      <span class="modal-hostname" id="modal-hostname">—</span>
     </div>
+    <button class="modal-close" onclick="closeModal()">&#10005;</button>
+  </header>
 
-    <!-- 이전 백업 / 최신 백업 컬럼 헤더 -->
-    <div class="split-header">
-      <div class="split-header-cell">
-        이전 백업 &nbsp;<span class="file-badge-prev">PREV</span>&nbsp;
-        <span id="split-prev-file" style="color:var(--text-muted);font-weight:400;"></span>
-      </div>
-      <div class="split-header-cell">
-        최신 백업 &nbsp;<span class="file-badge-curr">CURR</span>&nbsp;
-        <span id="split-curr-file" style="color:var(--text-muted);font-weight:400;"></span>
-      </div>
+  <div class="split-header">
+    <div class="split-header-cell">
+      이전 백업 &nbsp;<span class="file-badge-prev">PREV</span>&nbsp;
+      <span id="split-prev-file" style="color:var(--text-muted);font-weight:400;"></span>
     </div>
-
-    <div class="modal-body" id="modal-body">
-      <div class="modal-status">불러오는 중...</div>
+    <div class="split-header-cell">
+      최신 백업 &nbsp;<span class="file-badge-curr">CURR</span>&nbsp;
+      <span id="split-curr-file" style="color:var(--text-muted);font-weight:400;"></span>
     </div>
-
   </div>
-</div>
+
+  <div class="modal-body" id="modal-body">
+    <div class="modal-status">불러오는 중...</div>
+  </div>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
@@ -338,6 +312,8 @@
   // Diff 목록 로드
   // ------------------------------------------------------------------
   let _diffData = [];
+
+  const diffModal = document.getElementById('diff-modal');
 
   async function loadDiffs() {
     const limit = document.getElementById('limit-select').value;
@@ -377,7 +353,7 @@
   }
 
   // ------------------------------------------------------------------
-  // 모달 열기 / 닫기
+  // 모달 열기 / 닫기 — <dialog> API
   // ------------------------------------------------------------------
   function openDiffModal(idx) {
     const d = _diffData[idx];
@@ -385,31 +361,28 @@
 
     document.getElementById('modal-hostname').textContent =
       `${d.hostname}  ·  ${d.diff_lines}줄 변경`;
+    document.getElementById('split-prev-file').textContent = _shortPath(d.previous_file);
+    document.getElementById('split-curr-file').textContent = _shortPath(d.current_file);
+    document.getElementById('modal-body').innerHTML = renderSplitDiff(d.diff_content || '');
 
-    document.getElementById('split-prev-file').textContent = 
-      _shortPath(d.previous_file);
-    document.getElementById('split-curr-file').textContent = 
-    _shortPath(d.current_file);
-
-    document.getElementById('modal-body').innerHTML =
-      renderSplitDiff(d.diff_content || '');
-
-    document.getElementById('diff-modal').classList.add('open');
+    diffModal.showModal();
   }
 
   function closeModal() {
-    document.getElementById('diff-modal').classList.remove('open');
+    diffModal.close();
   }
 
-  function handleOverlayClick(event) {
-    if (event.target === document.getElementById('diff-modal')) {
-      closeModal();
-    }
-  }
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+  // ::backdrop 클릭 시 닫기
+  diffModal.addEventListener('click', e => {
+    const rect = diffModal.getBoundingClientRect();
+    const isOutside =
+      e.clientX < rect.left  || e.clientX > rect.right ||
+      e.clientY < rect.top   || e.clientY > rect.bottom;
+    if (isOutside) closeModal();
   });
+
+  // ESC 는 <dialog> 기본 처리
+  diffModal.addEventListener('cancel', () => {});
 
   function _shortPath(fullPath) {
     if (!fullPath) return '—';
@@ -419,29 +392,19 @@
 
   // ------------------------------------------------------------------
   // unified diff → split view 파싱
-  //
-  // 연속된 '-' 블록과 '+' 블록을 쌍으로 매칭하여 좌우 배치
-  //   '-' 라인: 왼쪽(이전 백업) 빨간 셀
-  //   '+' 라인: 오른쪽(최신 백업) 초록 셀
-  //   짝이 없는 쪽: 어두운 빈 셀
-  //   컨텍스트 라인: 좌우 동일 내용
   // ------------------------------------------------------------------
   function parseSplitDiff(content) {
     const lines   = content.split('\n');
     const result  = [];
     let leftLine  = 0;
     let rightLine = 0;
-    let removes   = [];   // { ln, text }
-    let adds      = [];   // { ln, text }
+    let removes   = [];
+    let adds      = [];
 
     function flushPairs() {
       const count = Math.max(removes.length, adds.length);
       for (let i = 0; i < count; i++) {
-        result.push({
-          type:  'change',
-          left:  removes[i] || null,
-          right: adds[i]    || null,
-        });
+        result.push({ type: 'change', left: removes[i] || null, right: adds[i] || null });
       }
       removes = [];
       adds    = [];
@@ -477,7 +440,6 @@
         continue;
       }
 
-      // 컨텍스트 라인
       flushPairs();
       leftLine++;
       rightLine++;
@@ -504,25 +466,17 @@
   }
 
   function renderSplitDiff(content) {
-    if (!content) {
-      return '<div class="modal-status">Diff 내용이 없습니다.</div>';
-    }
+    if (!content) return '<div class="modal-status">Diff 내용이 없습니다.</div>';
 
     const rows = parseSplitDiff(content);
 
     const html = rows.map(row => {
-      if (row.type === 'meta') {
-        return '';
-      }
+      if (row.type === 'meta') return '';
 
-      // @@ 헝크 헤더 (전체 너비)
       if (row.type === 'hunk') {
-        return `<tr>
-          <td class="td-hunk" colspan="5">${esc(row.content)}</td>
-        </tr>`;
+        return `<tr><td class="td-hunk" colspan="5">${esc(row.content)}</td></tr>`;
       }
 
-      // 컨텍스트 (좌우 동일)
       if (row.type === 'ctx') {
         return `<tr>
           <td class="ln td-ctx-ln">${row.left.ln}</td>
@@ -533,11 +487,10 @@
         </tr>`;
       }
 
-      // 변경 라인 — 좌(이전/빨간) / 우(최신/초록)
-      const leftLnCls   = row.left  ? 'ln td-remove-ln'   : 'ln td-empty-ln';
-      const leftCodeCls = row.left  ? 'code td-remove-code': 'code td-empty-code';
-      const rightLnCls  = row.right ? 'ln td-add-ln'       : 'ln td-empty-ln';
-      const rightCodeCls= row.right ? 'code td-add-code'   : 'code td-empty-code';
+      const leftLnCls    = row.left  ? 'ln td-remove-ln'   : 'ln td-empty-ln';
+      const leftCodeCls  = row.left  ? 'code td-remove-code': 'code td-empty-code';
+      const rightLnCls   = row.right ? 'ln td-add-ln'       : 'ln td-empty-ln';
+      const rightCodeCls = row.right ? 'code td-add-code'   : 'code td-empty-code';
 
       return `<tr>
         <td class="${leftLnCls}">${row.left  ? row.left.ln  : ''}</td>
@@ -546,18 +499,18 @@
         <td class="${rightLnCls}">${row.right ? row.right.ln : ''}</td>
         <td class="${rightCodeCls}">${row.right ? esc(row.right.text) : ''}</td>
       </tr>`;
-
     }).join('');
 
     return `<table class="diff-split-table">
-        <colgroup>
-          <col style="width:52px">
-          <col style="width:calc(50% - 53px)">
-          <col style="width:1px">
-          <col style="width:52px">
-          <col style="width:calc(50% - 53px)">
-        </colgroup>
-      <tbody>${html}</tbody></table>`;
+      <colgroup>
+        <col style="width:52px">
+        <col style="width:calc(50% - 53px)">
+        <col style="width:1px">
+        <col style="width:52px">
+        <col style="width:calc(50% - 53px)">
+      </colgroup>
+      <tbody>${html}</tbody>
+    </table>`;
   }
 
   // ------------------------------------------------------------------

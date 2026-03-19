@@ -75,7 +75,6 @@
     color: var(--accent);
   }
 
-  /* 백업 파일 보기 버튼 */
   .btn-view-file {
     background: none;
     border: 1px solid rgba(59,130,246,0.35);
@@ -87,6 +86,7 @@
     font-family: var(--mono);
     transition: background 0.15s, border-color 0.15s;
   }
+
   .btn-view-file:hover {
     background: rgba(59,130,246,0.1);
     border-color: var(--accent);
@@ -99,9 +99,7 @@
     margin-bottom: 20px;
   }
 
-  .page-title {
-    margin-bottom: 24px;
-  }
+  .page-title { margin-bottom: 24px; }
 
   .limit-select {
     background: var(--surface);
@@ -122,30 +120,31 @@
     font-size: 14px;
   }
 
-  /* ── 파일 뷰어 모달 ── */
-  .modal-overlay {
-    display: none;
-    position: fixed;
+  /* ── 파일 뷰어 <dialog> ── */
+  #file-modal {
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    width: 90vw;
+    max-width: 960px;
+    max-height: 80vh;
+    /* showModal()이 position:fixed를 자동 적용 → inset+margin으로 중앙 배치 */
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
+    margin: auto;
+    flex-direction: column;
+    overflow: hidden;
+    /* display는 [open] 상태에서만 flex로 설정 — 기본값은 브라우저 none 유지 */
   }
-  .modal-overlay.open {
+
+  #file-modal[open] {
     display: flex;
   }
 
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 90vw;
-    max-width: 960px;
-    height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  /* ::backdrop — dialog 내장 배경 처리 */
+  #file-modal::backdrop {
+    background: rgba(0, 0, 0, 0.75);
   }
 
   .modal-header {
@@ -186,6 +185,7 @@
     line-height: 1;
     transition: color 0.15s;
   }
+
   .modal-close:hover { color: var(--text); }
 
   /* 검색 바 */
@@ -209,6 +209,7 @@
     transition: border-color 0.15s;
     box-sizing: border-box;
   }
+
   .modal-search:focus { border-color: var(--accent); }
   .modal-search::placeholder { color: #555; }
 
@@ -240,9 +241,9 @@
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
   }
+
   .nav-btn:hover { color: var(--text); border-color: #444; }
 
-  /* 파일 내용 */
   .modal-body {
     flex: 1;
     overflow: auto;
@@ -260,18 +261,17 @@
     word-break: break-all;
   }
 
-  /* 검색 하이라이트 */
   .file-content mark {
     background: rgba(59,130,246,0.3);
     color: var(--text);
     border-radius: 2px;
   }
+
   .file-content mark.current {
-    background: rgba(250,204,21,0.5);  /* 현재 위치 강조 — 노란색 */
+    background: rgba(250,204,21,0.5);
     color: var(--text);
   }
 
-  /* 로딩 / 에러 상태 */
   .modal-status {
     display: flex;
     align-items: center;
@@ -287,16 +287,20 @@
 {% block content %}
 <h1 class="page-title">백업 이력</h1>
 
-<div class="controls">
-  <select class="limit-select" id="limit-select" onchange="loadHistory()">
-    <option value="5">최근 5회</option>
-    <option value="10">최근 10회</option>
-    <option value="20">최근 20회</option>
-    <option value="50">최근 50회</option>
-  </select>
-</div>
+<!-- 조회 설정 -->
+<section aria-label="조회 설정">
+  <div class="controls">
+    <select class="limit-select" id="limit-select" onchange="loadHistory()">
+      <option value="5">최근 5회</option>
+      <option value="10">최근 10회</option>
+      <option value="20">최근 20회</option>
+      <option value="50">최근 50회</option>
+    </select>
+  </div>
+</section>
 
-<div class="card">
+<!-- 백업 이력 목록 -->
+<section aria-label="백업 이력 목록" class="card">
   <table>
     <thead>
       <tr>
@@ -313,41 +317,39 @@
       <tr><td colspan="7" class="empty">데이터 로딩 중...</td></tr>
     </tbody>
   </table>
-</div>
+</section>
 
-<!-- 파일 뷰어 모달 -->
-<div class="modal-overlay" id="file-modal" onclick="handleOverlayClick(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="modal-title">—</span>
-      <div class="modal-actions">
-        <button class="modal-close" onclick="closeModal()">&#10005;</button>
-      </div>
+<!-- 파일 뷰어 모달 — <dialog> semantic tag -->
+<dialog id="file-modal">
+  <header class="modal-header">
+    <span class="modal-title" id="modal-title">—</span>
+    <div class="modal-actions">
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
     </div>
+  </header>
 
-    <!-- 인라인 검색 -->
-    <div class="modal-search-wrap">
-      <input
-        class="modal-search"
-        id="modal-search"
-        type="text"
-        placeholder="파일 내에서 검색... (Enter: 다음)"
-        oninput="onSearchInput()"
-        onkeydown="onSearchKeydown(event)"
-        autocomplete="off"
-      />
-      <div class="search-nav">
-        <span class="search-count" id="search-count"></span>
-        <button class="nav-btn" onclick="navigateSearch(-1)">&#9650;</button>
-        <button class="nav-btn" onclick="navigateSearch(1)">&#9660;</button>
-      </div>
-    </div>
-
-    <div class="modal-body" id="modal-body">
-      <div class="modal-status">불러오는 중...</div>
+  <!-- 인라인 검색 -->
+  <div class="modal-search-wrap">
+    <input
+      class="modal-search"
+      id="modal-search"
+      type="text"
+      placeholder="파일 내에서 검색... (Enter: 다음)"
+      oninput="onSearchInput()"
+      onkeydown="onSearchKeydown(event)"
+      autocomplete="off"
+    />
+    <div class="search-nav">
+      <span class="search-count" id="search-count"></span>
+      <button class="nav-btn" onclick="navigateSearch(-1)">&#9650;</button>
+      <button class="nav-btn" onclick="navigateSearch(1)">&#9660;</button>
     </div>
   </div>
-</div>
+
+  <div class="modal-body" id="modal-body">
+    <div class="modal-status">불러오는 중...</div>
+  </div>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
@@ -370,8 +372,8 @@
       }
 
       tbody.innerHTML = runs.map(r => {
-        const runAt = r.run_at.slice(0, 19).replace('T', ' ');
-        const finAt = r.finished_at ? r.finished_at.slice(0, 19).replace('T', ' ') : '—';
+        const runAt     = r.run_at.slice(0, 19).replace('T', ' ');
+        const finAt     = r.finished_at ? r.finished_at.slice(0, 19).replace('T', ' ') : '—';
         const failBadge = r.fail > 0
           ? `<span class="badge badge-danger">${r.fail}</span>`
           : `<span class="badge badge-success">0</span>`;
@@ -402,12 +404,12 @@
   }
 
   async function toggleDetail(runId, btn) {
-    const row = document.getElementById(`detail-${runId}`);
+    const row      = document.getElementById(`detail-${runId}`);
     const isHidden = row.style.display === 'none';
 
     if (isHidden) {
       row.style.display = 'table-row';
-      btn.textContent = '접기';
+      btn.textContent   = '접기';
 
       const content = document.getElementById(`detail-content-${runId}`);
       if (content.textContent === '로딩 중...') {
@@ -459,24 +461,28 @@
       }
     } else {
       row.style.display = 'none';
-      btn.textContent = '상세 보기';
+      btn.textContent   = '상세 보기';
     }
   }
 
   // ------------------------------------------------------------------
-  // 파일 뷰어 모달
+  // 파일 뷰어 모달 — <dialog> API 사용
   // ------------------------------------------------------------------
-  let _rawContent   = '';   // 원본 파일 텍스트
-  let _matchIndexes = [];   // 검색 매칭 위치 인덱스 배열
-  let _currentMatch = -1;   // 현재 강조 중인 매칭 인덱스
+  let _rawContent   = '';
+  let _matchIndexes = [];
+  let _currentMatch = -1;
+
+  const fileModal = document.getElementById('file-modal');
 
   async function openFileModal(filePath, hostname) {
-    // 모달 초기화
-    document.getElementById('modal-title').textContent = hostname;
-    document.getElementById('modal-search').value = '';
+    document.getElementById('modal-title').textContent  = hostname;
+    document.getElementById('modal-search').value       = '';
     document.getElementById('search-count').textContent = '';
-    document.getElementById('modal-body').innerHTML = '<div class="modal-status">불러오는 중...</div>';
-    document.getElementById('file-modal').classList.add('open');
+    document.getElementById('modal-body').innerHTML     =
+      '<div class="modal-status">불러오는 중...</div>';
+
+    // <dialog> 내장 showModal() — 자동으로 ::backdrop 적용 + focus trap
+    fileModal.showModal();
 
     try {
       const res = await fetch(`/api/backup/file?path=${encodeURIComponent(filePath)}`);
@@ -489,10 +495,9 @@
         return;
       }
 
-      const data = await res.json();
+      const data  = await res.json();
       _rawContent = data.content;
 
-      // 파일명을 타이틀에 반영
       document.getElementById('modal-title').textContent =
         `${hostname}  ·  ${data.filename}`;
 
@@ -505,29 +510,32 @@
   }
 
   function closeModal() {
-    document.getElementById('file-modal').classList.remove('open');
+    fileModal.close();   // <dialog> 내장 close()
     _rawContent   = '';
     _matchIndexes = [];
     _currentMatch = -1;
   }
 
-  // 모달 바깥 클릭 시 닫기
-  function handleOverlayClick(event) {
-    if (event.target === document.getElementById('file-modal')) {
-      closeModal();
-    }
-  }
+  // ::backdrop 클릭 시 닫기 (dialog 외부 클릭)
+  fileModal.addEventListener('click', e => {
+    const rect = fileModal.getBoundingClientRect();
+    const isOutside =
+      e.clientX < rect.left  || e.clientX > rect.right ||
+      e.clientY < rect.top   || e.clientY > rect.bottom;
+    if (isOutside) closeModal();
+  });
 
-  // ESC 키로 모달 닫기
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+  // ESC 키는 <dialog>가 기본으로 처리 (close 이벤트 발생)
+  // 추가 정리 작업이 필요하면 cancel 이벤트로 처리
+  fileModal.addEventListener('cancel', () => {
+    _rawContent   = '';
+    _matchIndexes = [];
+    _currentMatch = -1;
   });
 
   // ------------------------------------------------------------------
-  // 파일 내용 렌더링 (검색 하이라이트 포함)
+  // 파일 내용 렌더링
   // ------------------------------------------------------------------
-
-  // XSS 방지: 텍스트를 HTML 엔티티로 이스케이프
   function escapeHtml(text) {
     return text
       .replace(/&/g, '&amp;')
@@ -544,10 +552,9 @@
       return;
     }
 
-    // 검색어 하이라이트
-    const escaped    = escapeHtml(text);
-    const escapedKw  = escapeHtml(keyword);
-    const regex      = new RegExp(escapedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const escaped   = escapeHtml(text);
+    const escapedKw = escapeHtml(keyword);
+    const regex     = new RegExp(escapedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
 
     let matchCount = 0;
     const highlighted = escaped.replace(regex, match => {
@@ -558,7 +565,6 @@
 
     body.innerHTML = `<pre class="file-content">${highlighted}</pre>`;
 
-    // 현재 매칭 위치로 스크롤
     if (currentIdx >= 0) {
       const currentMark = body.querySelector(`mark[data-idx="${currentIdx}"]`);
       if (currentMark) {
@@ -576,8 +582,7 @@
     _matchIndexes = [];
 
     if (keyword) {
-      // 매칭 수 계산
-      const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const regex   = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       const matches = _rawContent.match(regex);
       const total   = matches ? matches.length : 0;
       _matchIndexes = Array.from({ length: total }, (_, i) => i);
