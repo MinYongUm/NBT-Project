@@ -249,6 +249,52 @@
   .compare-device-list::-webkit-scrollbar-thumb {
     background: var(--border); border-radius: 2px;
   }
+
+  /* ── 분석 진행 상태 표시 ────────────────────────────────── */
+  .analysis-progress {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .analysis-progress.active { display: flex; }
+
+  .progress-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .progress-label .elapsed { color: var(--text); font-weight: 600; }
+  .progress-label .percent { color: var(--accent); }
+
+  .progress-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-fill.complete {
+    background: var(--success);
+    transition: width 0.2s ease;
+  }
+
 </style>
 {% endblock %}
 
@@ -337,6 +383,20 @@
           <span class="badge badge-gray" id="metaChunks"></span>
         </div>
       </div>
+      <!-- 분석 진행 표시 (단일) -->
+      <div class="analysis-progress" id="analysisProgress">
+        <div class="progress-label">
+          <span>Ollama 분석 중...</span>
+          <span>
+            <span class="elapsed" id="progressElapsed">00:00</span>
+            &nbsp;·&nbsp;
+            <span class="percent" id="progressPercent">0%</span>
+          </span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
       <div id="answerWrap">
         <div class="answer-empty" id="answerEmpty">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
@@ -409,6 +469,20 @@
           <span class="badge badge-gray"    id="cMetaChunks"></span>
         </div>
       </div>
+      <!-- 분석 진행 표시 (비교) -->
+      <div class="analysis-progress" id="compareAnalysisProgress">
+        <div class="progress-label">
+          <span>Ollama 분석 중...</span>
+          <span>
+            <span class="elapsed" id="cProgressElapsed">00:00</span>
+            &nbsp;·&nbsp;
+            <span class="percent" id="cProgressPercent">0%</span>
+          </span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="cProgressFill"></div>
+        </div>
+      </div>
       <div id="compareAnswerWrap">
         <div class="answer-empty" id="compareAnswerEmpty">
           <svg viewBox="0 0 24 24">
@@ -430,12 +504,15 @@
 {% block scripts %}
 <script>
   // ── 공통 상태 ────────────────────────────────────────────────
-  let allDevices       = [];   // [{ip, hostname, last_hostname}]
-  let indexedSet       = new Set();  // 인덱싱 완료된 hostname
+  let allDevices       = [];
+  let indexedSet       = new Set();
 
   // ── 단일 분석 상태 ───────────────────────────────────────────
   let selectedFilePath = null;
   let selectedHostname = null;
+
+  // ── 타이머 상태 ─────────────────────────────────────────────
+  let _analysisTimer   = null;
 
   const deviceSelect   = document.getElementById('deviceSelect');
   const fileList       = document.getElementById('fileList');
@@ -473,7 +550,6 @@
       if (handle401(res)) return;
       allDevices = await res.json();
 
-      // 단일 분석 드롭다운
       allDevices.forEach(d => {
         const hn  = d.last_hostname || d.hostname || d.ip;
         const opt = document.createElement('option');
@@ -483,7 +559,6 @@
         deviceSelect.appendChild(opt);
       });
 
-      // 비교 분석 체크박스 목록
       renderCompareDeviceList();
 
     } catch (e) {
@@ -501,7 +576,7 @@
     }
 
     allDevices.forEach(d => {
-      const hn   = d.last_hostname || d.hostname || d.ip;
+      const hn        = d.last_hostname || d.hostname || d.ip;
       const isIndexed = indexedSet.has(hn);
 
       const item = document.createElement('div');
@@ -526,7 +601,6 @@
     compareBtn.disabled =
       checked.length < 2 || !compareQuestionInput.value.trim();
 
-    // 인덱싱 현황 업데이트
     if (checked.length === 0) {
       compareIndexStatus.textContent = '장비를 선택하면 인덱싱 현황이 표시됩니다.';
       return;
@@ -669,7 +743,6 @@
       if (res.ok) {
         const data = await res.json();
         setIndexStatus('success', `인덱싱 완료 — ${data.chunks}개 청크 저장됨`);
-        // 인덱싱 완료 목록에 추가 후 비교 분석 목록 갱신
         indexedSet.add(selectedHostname);
         renderCompareDeviceList();
         updateCompareBtn();
@@ -690,12 +763,16 @@
     const question = questionInput.value.trim();
     if (!question || !selectedFilePath) return;
 
+    // 분석 시작 UI
     analyzeBtn.disabled       = true;
+    analyzeBtn.textContent    = '분석 중...';
     answerEmpty.style.display = 'none';
     answerBox.style.display   = 'block';
-    answerBox.className       = 'answer-box typing';
-    answerBox.textContent     = '';
+    answerBox.className       = 'answer-box';
     answerMeta.style.display  = 'none';
+
+    // 경과 시간 타이머 시작
+    startAnalysisTimer('analysisProgress', 'progressElapsed', 'progressPercent', 'progressFill');
 
     try {
       const res = await fetch('/api/analyze', {
@@ -708,9 +785,13 @@
 
       if (res.ok) {
         const data = await res.json();
-        answerBox.className = 'answer-box typing';
+
+        // 타이머 중단 후 타이핑 효과
+        stopAnalysisTimer('analysisProgress', 'progressFill', 'progressPercent');
+        answerBox.textContent = '';
+        answerBox.className   = 'answer-box typing';
         await typeText(answerBox, data.answer);
-        answerBox.className = 'answer-box';
+        answerBox.className   = 'answer-box';
 
         document.getElementById('metaModel').textContent  = data.model;
         document.getElementById('metaChunks').textContent =
@@ -721,14 +802,20 @@
         answerMeta.style.display = 'flex';
       } else {
         const err = await res.json();
+        stopAnalysisTimer('analysisProgress', 'progressFill', 'progressPercent');
         answerBox.className   = 'answer-box';
         answerBox.textContent = `오류: ${err.detail || res.status}`;
       }
     } catch (e) {
+      stopAnalysisTimer('analysisProgress', 'progressFill', 'progressPercent');
       answerBox.className   = 'answer-box';
       answerBox.textContent = `오류: ${e.message}`;
     } finally {
-      analyzeBtn.disabled = false;
+      analyzeBtn.disabled     = false;
+      analyzeBtn.innerHTML    = `
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/></svg>
+        분석`;
     }
   });
 
@@ -738,12 +825,16 @@
     const checked  = getCheckedDevices();
     if (!question || checked.length < 2) return;
 
+    // 분석 시작 UI
     compareBtn.disabled              = true;
+    compareBtn.textContent           = '분석 중...';
     compareAnswerEmpty.style.display = 'none';
     compareAnswerBox.style.display   = 'block';
-    compareAnswerBox.className       = 'answer-box typing';
-    compareAnswerBox.textContent     = '';
+    compareAnswerBox.className       = 'answer-box';
     compareAnswerMeta.style.display  = 'none';
+
+    // 경과 시간 타이머 시작
+    startAnalysisTimer('compareAnalysisProgress', 'cProgressElapsed', 'cProgressPercent', 'cProgressFill');
 
     try {
       const res = await fetch('/api/analyze/compare', {
@@ -759,9 +850,13 @@
 
       if (res.ok) {
         const data = await res.json();
-        compareAnswerBox.className = 'answer-box typing';
+
+        // 타이머 중단 후 타이핑 효과
+        stopAnalysisTimer('compareAnalysisProgress', 'cProgressFill', 'cProgressPercent');
+        compareAnswerBox.textContent = '';
+        compareAnswerBox.className   = 'answer-box typing';
         await typeText(compareAnswerBox, data.answer);
-        compareAnswerBox.className = 'answer-box';
+        compareAnswerBox.className   = 'answer-box';
 
         document.getElementById('cMetaModel').textContent   = data.model;
         document.getElementById('cMetaDevices').textContent =
@@ -771,15 +866,23 @@
         compareAnswerMeta.style.display = 'flex';
       } else {
         const err = await res.json();
+        stopAnalysisTimer('compareAnalysisProgress', 'cProgressFill', 'cProgressPercent');
         compareAnswerBox.className   = 'answer-box';
         compareAnswerBox.textContent = `오류: ${err.detail || res.status}`;
       }
     } catch (e) {
+      stopAnalysisTimer('compareAnalysisProgress', 'cProgressFill', 'cProgressPercent');
       compareAnswerBox.className   = 'answer-box';
       compareAnswerBox.textContent = `오류: ${e.message}`;
     } finally {
-      compareBtn.disabled = false;
-      updateCompareBtn();
+      compareBtn.disabled  = false;
+      compareBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6"  y1="20" x2="6"  y2="14"/>
+        </svg>
+        비교 분석`;
     }
   });
 
@@ -813,6 +916,70 @@
       el.textContent += text.slice(i, i + 4);
       await delay(12);
     }
+  }
+
+  // ── 타이머 / 프로그레스 헬퍼 ────────────────────────────────
+  function _formatElapsed(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function startAnalysisTimer(progressId, elapsedId, percentId, fillId) {
+    const progressEl = document.getElementById(progressId);
+    const elapsedEl  = document.getElementById(elapsedId);
+    const percentEl  = document.getElementById(percentId);
+    const fillEl     = document.getElementById(fillId);
+
+    // 초기화
+    fillEl.className    = 'progress-fill';
+    fillEl.style.width  = '0%';
+    percentEl.textContent  = '0%';
+    elapsedEl.textContent  = '00:00';
+    progressEl.classList.add('active');
+
+    let elapsed = 0;
+    let percent = 0;
+
+    _analysisTimer = setInterval(() => {
+      elapsed++;
+      elapsedEl.textContent = _formatElapsed(elapsed);
+
+      // 85%까지만 자동 증가 — 응답 전 100% 도달 방지
+      // 초반(0~30%): 빠르게 / 중반(30~70%): 보통 / 후반(70~85%): 느리게
+      if (percent < 30) {
+        percent = Math.min(percent + 3.0, 30);
+      } else if (percent < 70) {
+        percent = Math.min(percent + 1.5, 70);
+      } else if (percent < 85) {
+        percent = Math.min(percent + 0.5, 85);
+      }
+
+      fillEl.style.width    = `${percent}%`;
+      percentEl.textContent = `${Math.floor(percent)}%`;
+    }, 500);
+  }
+
+  function stopAnalysisTimer(progressId, fillId, percentId) {
+    if (_analysisTimer) {
+      clearInterval(_analysisTimer);
+      _analysisTimer = null;
+    }
+
+    const progressEl = document.getElementById(progressId);
+    const fillEl     = document.getElementById(fillId);
+    const percentEl  = document.getElementById(percentId);
+
+    // 100%로 점프 후 0.6초 뒤 숨김
+    fillEl.className      = 'progress-fill complete';
+    fillEl.style.width    = '100%';
+    percentEl.textContent = '100%';
+
+    setTimeout(() => {
+      progressEl.classList.remove('active');
+      fillEl.className   = 'progress-fill';
+      fillEl.style.width = '0%';
+    }, 3000);
   }
 
   // ── 시작 ────────────────────────────────────────────────────
