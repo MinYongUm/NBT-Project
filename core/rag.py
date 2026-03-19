@@ -12,9 +12,12 @@ NBT (Network Backup Tools) - RAG Pipeline
     NBT_EMBED_MODEL : 임베딩 모델명      (기본: nomic-embed-text)
 
 Update History:
-- ver 5.1 (2026/03/18): 신규 작성
+- ver 5.1   (2026/03/18): 신규 작성
 - ver 5.1.1 (2026/03/18): chunk_config() NBT 백업 파일 구조 대응
                            ("====..." 구분자 기준 1차 분할 추가)
+- ver 5.3   (2026/03/19): 슬라이딩 윈도우 청크 분할 추가
+                           show version, show ip route 등 대형 섹션
+                           라인 수 초과 시 overlap 포함 분할 적용
 """
 
 import hashlib
@@ -40,7 +43,11 @@ _OLLAMA_URL  = os.environ.get("NBT_OLLAMA_URL",  "http://nbt-ollama:11434")
 _EMBED_MODEL = os.environ.get("NBT_EMBED_MODEL", "nomic-embed-text")
 
 # 청크 최소 길이 — 너무 짧은 청크(배너, 주석 등) 제외
-_MIN_CHUNK_LEN = 30
+_MIN_CHUNK_LEN  = 30
+# 청크당 최대 라인 수 — 이 수를 초과하면 슬라이딩 윈도우로 분할
+_MAX_CHUNK_LINES = 50
+# 청크 간 겹침 라인 수 — 청크 경계에서 문맥이 끊기지 않도록 앞 청크와 일부 공유
+_CHUNK_OVERLAP   = 5
 
 
 # ------------------------------------------------------------------
@@ -54,8 +61,8 @@ def _sanitize_collection_name(name: str) -> str:
         - [a-zA-Z0-9._-] 문자만 허용
         - 시작/끝은 영숫자
 
-    예: "R5"        → "nbt_R5"
-        "SW-CORE 01"→ "SW-CORE_01"
+    예: "R5"         → "nbt_R5"
+        "SW-CORE 01" → "SW-CORE_01"
     """
     safe = re.sub(r"[^a-zA-Z0-9._\-]", "_", name)
     if not safe[0:1].isalnum():
@@ -133,7 +140,7 @@ def _embed(text: str) -> list[float]:
 
 
 # ------------------------------------------------------------------
-# 청크 분할
+# 청크 분할 헬퍼
 # ------------------------------------------------------------------
 def _split_by_bang(text: str) -> list[str]:
     """'!' 기준으로 텍스트를 분할합니다. (running-config 내부 섹션용)"""
@@ -156,11 +163,71 @@ def _split_by_bang(text: str) -> list[str]:
     return result
 
 
+def _split_by_sliding_window(text: str) -> list[str]:
+    """슬라이딩 윈도우 방식으로 텍스트를 분할합니다.
+
+    _MAX_CHUNK_LINES 이하인 섹션은 그대로 반환합니다.
+    초과하는 섹션은 _CHUNK_OVERLAP 라인씩 겹치게 분할합니다.
+
+    겹침(overlap)이 필요한 이유:
+        청크 A의 마지막 라인과 청크 B의 첫 라인이 의미상 연결된 경우
+        (예: interface 선언 → ip address 설정) 어느 청크에도 완전한
+        문맥이 없을 수 있습니다. overlap으로 앞 청크 끝 내용을 다음
+        청크 시작에 포함시켜 문맥 단절을 방지합니다.
+
+    예시 (_MAX_CHUNK_LINES=50, _CHUNK_OVERLAP=5):
+        100줄 섹션 →
+            청크 1: 1~50줄
+            청크 2: 46~95줄   (앞 청크와 5줄 겹침)
+            청크 3: 91~100줄
+
+    Args:
+        text: 분할할 텍스트
+
+    Returns:
+        list[str]: 청크 리스트
+    """
+    lines = text.splitlines()
+
+    # _MAX_CHUNK_LINES 이하면 분할 불필요
+    if len(lines) <= _MAX_CHUNK_LINES:
+        stripped = text.strip()
+        if len(stripped) >= _MIN_CHUNK_LEN:
+            return [stripped]
+        return []
+
+    result: list[str] = []
+    step = _MAX_CHUNK_LINES - _CHUNK_OVERLAP  # 다음 청크 시작 위치 간격
+    start = 0
+
+    while start < len(lines):
+        end = start + _MAX_CHUNK_LINES
+        chunk_lines = lines[start:end]
+        chunk = "\n".join(chunk_lines).strip()
+
+        if len(chunk) >= _MIN_CHUNK_LEN:
+            result.append(chunk)
+
+        if end >= len(lines):
+            break
+        start += step
+
+    return result
+
+
+# ------------------------------------------------------------------
+# 청크 분할 (Public)
+# ------------------------------------------------------------------
 def chunk_config(text: str) -> list[str]:
     """NBT 백업 파일을 청크로 분할합니다.
 
-    1차 분할: "========== 명령어 ==========" 구분자 기준
-    2차 분할: running-config 섹션은 추가로 "!" 기준 분할
+    분할 전략:
+        1차 분할: "========== 명령어 ==========" 구분자 기준으로 섹션 분리
+        2차 분할:
+            - running-config 섹션 → "!" 기준 분할 (_split_by_bang)
+            - 그 외 섹션 (show version, show ip route 등)
+              → _MAX_CHUNK_LINES 초과 시 슬라이딩 윈도우 분할
+              → _MAX_CHUNK_LINES 이하 시 청크 1개
 
     Args:
         text: NBT 백업 파일 전체 텍스트
@@ -178,16 +245,16 @@ def chunk_config(text: str) -> list[str]:
         if not section:
             continue
 
-        # running-config 섹션은 "!" 기준으로 추가 분할
+        # running-config 섹션: "!" 기준 분할
         if "Current configuration" in section or (
             "interface " in section and "router " in section
         ):
             sub_chunks = _split_by_bang(section)
             chunks.extend(sub_chunks)
         else:
-            # 그 외 섹션 (show version, show log 등)은 통째로 하나의 청크
-            if len(section) >= _MIN_CHUNK_LEN:
-                chunks.append(section)
+            # 그 외 섹션: 라인 수 초과 시 슬라이딩 윈도우, 이하 시 청크 1개
+            sub_chunks = _split_by_sliding_window(section)
+            chunks.extend(sub_chunks)
 
     # 1차 분할 결과가 없으면 "!" 기준으로 fallback
     if not chunks:
