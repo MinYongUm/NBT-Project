@@ -6,6 +6,7 @@ NBT (Network Backup Tools) - Notifier Module
     - 장비 개별 최종 실패 시
     - Config Diff 감지 시
     - 전체 백업 완료 요약
+    - 일일 분석 리포트 발송 (v5.2)
 
 환경변수 (민감 정보):
     - NBT_SLACK_WEBHOOK : Slack Incoming Webhook URL
@@ -89,6 +90,24 @@ class Notifier:
         )
         self._dispatch(title, body)
 
+    def send_report(self, subject: str, html_body: str) -> None:
+        """일일 분석 리포트 HTML 메일 발송 (v5.2).
+
+        Email만 지원합니다. Slack은 HTML 렌더링 미지원으로 보류.
+
+        Args:
+            subject:   메일 제목 (예: "[NBT] 일일 분석 리포트 2026-03-18")
+            html_body: HTML 형식의 리포트 본문
+        """
+        if not self._cfg.email_enabled:
+            logger.debug("Email 비활성화 상태 — 리포트 발송 생략")
+            return
+        if not self._cfg.smtp_host or not self._cfg.to_addrs:
+            logger.warning("리포트 발송 실패: SMTP 설정 누락 (smtp_host 또는 to_addrs)")
+            return
+
+        self._send_email_html(subject, html_body)
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
@@ -122,7 +141,7 @@ class Notifier:
             logger.warning(f"Slack 알림 예외 발생: {e}")
 
     def _send_email(self, title: str, body: str) -> None:
-        """SMTP(STARTTLS)로 이메일 전송."""
+        """SMTP(STARTTLS)로 plain text 이메일 전송."""
         msg = MIMEMultipart()
         msg["From"] = self._cfg.from_addr
         msg["To"] = ", ".join(self._cfg.to_addrs)
@@ -147,6 +166,40 @@ class Notifier:
             logger.warning(f"Email 알림 전송 실패 (SMTP): {e}")
         except Exception as e:
             logger.warning(f"Email 알림 예외 발생: {e}")
+
+    def _send_email_html(self, subject: str, html_body: str) -> None:
+        """SMTP(STARTTLS)로 HTML 이메일 전송 (v5.2).
+
+        리포트 발송 전용입니다. 기존 _send_email()의 plain text와 독립적으로 동작합니다.
+
+        Args:
+            subject:   메일 제목
+            html_body: HTML 형식의 메일 본문
+        """
+        msg = MIMEMultipart()
+        msg["From"] = self._cfg.from_addr
+        msg["To"] = ", ".join(self._cfg.to_addrs)
+        msg["Subject"] = subject
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port, timeout=10) as smtp:
+                smtp.ehlo()
+                smtp.starttls(context=context)
+                smtp.login(self._cfg.smtp_user, self._cfg.smtp_password)
+                smtp.sendmail(
+                    self._cfg.from_addr,
+                    self._cfg.to_addrs,
+                    msg.as_string(),
+                )
+            logger.info(f"리포트 Email 전송 성공: {subject}")
+        except smtplib.SMTPAuthenticationError as e:
+            logger.warning(f"리포트 Email 전송 실패 (인증 오류): {e}")
+        except smtplib.SMTPException as e:
+            logger.warning(f"리포트 Email 전송 실패 (SMTP): {e}")
+        except Exception as e:
+            logger.warning(f"리포트 Email 전송 예외 발생: {e}")
 
 
 def build_notifier(notify_cfg: Optional[dict]) -> Notifier:

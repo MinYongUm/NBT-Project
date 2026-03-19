@@ -264,7 +264,29 @@ class DBManager:
             (limit,),
         ).fetchall()
         return rows
+    
+    def get_run_diffs(self, run_id: int) -> list:
+        """특정 run의 Config Diff 결과를 반환합니다. (v5.2)
 
+        analysis_task에서 분석 대상 장비 목록을 조회할 때 사용합니다.
+        get_recent_diffs()와 달리 run_id를 기준으로 조회합니다.
+
+        Args:
+            run_id: 조회 대상 backup_runs.run_id
+
+        Returns:
+            list[sqlite3.Row]: hostname, ip, diff_lines, current_file,
+                            previous_file, detected_at
+        """
+        rows = self._conn.execute(
+            """SELECT hostname, ip, diff_lines, current_file,
+                    previous_file, detected_at
+            FROM config_diffs
+            WHERE run_id = ?
+            ORDER BY detected_at ASC""",
+            (run_id,),
+        ).fetchall()
+        return rows
     # ------------------------------------------------------------------
     # Devices CRUD (v4.1)
     # ------------------------------------------------------------------

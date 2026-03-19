@@ -53,6 +53,7 @@ celery_app.conf.update(
     beat_schedule={
         # 정기 자동 백업 (v4.4)
         # 매일 NBT_SCHEDULE_HOUR:NBT_SCHEDULE_MINUTE에 전체 백업 실행
+        # auto_analyze=True: 백업 완료 후 analysis_task 자동 체이닝 (v5.2)
         "nbt-auto-backup": {
             "task":     "core.tasks.backup_task",
             "schedule": crontab(hour=_SCHEDULE_HOUR, minute=_SCHEDULE_MINUTE),
@@ -61,6 +62,7 @@ celery_app.conf.update(
                 "run_id":       None,
                 "group_filter": None,
                 "target_ips":   None,
+                "auto_analyze": True,    # v5.2 추가
             },
         },
         # 보존 기간 자동 정리 (v4.4)

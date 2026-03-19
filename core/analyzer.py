@@ -44,7 +44,8 @@ Rules:
 - If something is not present in the config, clearly state that
 - Use technical network terminology appropriately
 - Structure your answer clearly with findings and recommendations
-- Be concise but thorough"""
+- Be concise but thorough
+- 마크다운 문법 사용 금지 (###, **, -, * 등 금지) — 일반 텍스트로만 답변할 것"""
 
 _COMPARE_SYSTEM_PROMPT = """You are a senior network engineer assistant specializing in Cisco network devices.
 Compare the provided configurations from multiple network devices and answer the user's question.
@@ -57,8 +58,8 @@ Rules:
 - 문제가 되는 설정 차이는 반드시 지적할 것
 - Base your analysis strictly on the provided configurations
 - If something is not present in a device's config, clearly state that
-- Structure your answer with per-device findings and a comparison summary"""
-
+- Structure your answer with per-device findings and a comparison summary
+- 마크다운 문법 사용 금지 (###, **, -, * 등 금지) — 일반 텍스트로만 답변할 것"""
 
 # ------------------------------------------------------------------
 # Public API
@@ -298,6 +299,23 @@ def _build_prompt_compare(
 
 ## Comparison Analysis (in Korean)"""
 
+def _strip_markdown(text: str) -> str:
+    """LLM 응답에서 마크다운 문법을 제거합니다."""
+    import re
+    # ### 헤더 제거
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    # **굵게** / *기울임* 제거 (쌍으로 된 것)
+    text = re.sub(r"\*{1,2}(.+?)\*{1,2}", r"\1", text)
+    # 잔존 * 제거 (짝이 맞지 않는 경우)
+    text = re.sub(r"\*+", "", text)
+    # _기울임_ 제거
+    text = re.sub(r"_{1,2}(.+?)_{1,2}", r"\1", text)
+    # ``` 코드블록 제거
+    text = re.sub(r"```[a-zA-Z]*\n?", "", text)
+    # 3개 이상 연속 줄바꿈 → 2개로 정리
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
 
 def _call_ollama(prompt: str) -> str:
     """Ollama /api/generate 엔드포인트를 호출합니다.
@@ -347,4 +365,4 @@ def _call_ollama(prompt: str) -> str:
     if not answer:
         raise RuntimeError("Ollama가 빈 응답을 반환했습니다.")
 
-    return answer
+    return _strip_markdown(answer)    # v5.2 추가
