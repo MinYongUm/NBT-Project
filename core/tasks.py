@@ -27,7 +27,7 @@ from core.backup import run_backup
 
 logger = get_task_logger(__name__)
 
-REDIS_URL  = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+REDIS_URL   = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 RUNNING_KEY = "nbt:is_running"
 KST         = timezone(timedelta(hours=9))
 
@@ -60,6 +60,38 @@ def clear_running_flag() -> None:
         logger.info("Redis 실행 중 플래그 해제 완료")
     except Exception as e:
         logger.warning(f"Redis 플래그 해제 실패: {e}")
+
+
+def _format_analysis_error(e: Exception) -> str:
+    """분석 예외를 운영자 친화적 메시지로 변환합니다.
+
+    raw 예외 문자열을 리포트에 그대로 노출하지 않기 위한 후처리 함수.
+    장애 유형별로 분기하여 간결한 메시지를 반환합니다.
+    """
+    error_str = str(e).lower()
+
+    # DNS 해석 실패 / 네트워크 도달 불가
+    if any(k in error_str for k in ("errno -3", "name resolution", "temporary failure")):
+        return "분석 실패 — Ollama 서버 응답 없음 (네트워크 오류)"
+
+    # 연결 거부 (컨테이너 다운 등)
+    if any(k in error_str for k in ("connection refused", "errno 111")):
+        return "분석 실패 — Ollama 서버 응답 없음 (연결 거부)"
+
+    # 응답 시간 초과
+    if any(k in error_str for k in ("timeout", "timed out")):
+        return "분석 실패 — Ollama 서버 응답 없음 (응답 시간 초과)"
+
+    # ChromaDB 장애
+    if any(k in error_str for k in ("chroma", "invalidargument", "collection")):
+        return "분석 실패 — ChromaDB 오류"
+
+    # 임베딩 요청 실패 (위 케이스에서 잡히지 않은 경우)
+    if any(k in error_str for k in ("embed", "임베딩")):
+        return "분석 실패 — 임베딩 요청 실패"
+
+    # 그 외
+    return "분석 실패 — 알 수 없는 오류"
 
 
 # ------------------------------------------------------------------
@@ -310,8 +342,9 @@ def analysis_task(self: Task, run_id: int) -> dict:
                 analysis_text = result.get("answer", "분석 결과 없음")
 
             except Exception as e:
+                # full traceback은 워커 로그에만 기록, 리포트에는 정제된 메시지 전달
                 logger.error(f"분석 실패: {hostname} — {e}", exc_info=True)
-                analysis_text = f"분석 중 오류가 발생했습니다: {e}"
+                analysis_text = _format_analysis_error(e)
 
             analyzed.append({
                 "hostname":   hostname,
