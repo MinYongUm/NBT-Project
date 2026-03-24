@@ -163,9 +163,6 @@
   .compare-device-status.indexed   { color: var(--success); }
   .compare-device-status.unindexed { color: var(--text-muted); }
 
-  /* ── skeleton: compare-device-item 구조 모방 ─────────────────
-     checkbox 자리(14px) + gap(10px) + info 영역(이름줄 + 상태줄)
-     실제 .compare-device-item과 동일한 padding/border/border-radius 유지 */
   .skeleton-compare-item {
     display: flex;
     align-items: center;
@@ -189,8 +186,6 @@
     overflow: hidden;
   }
 
-  /* ── skeleton: file-item 구조 모방 ───────────────────────────
-     아이콘 자리(14px) + gap(8px) + 파일명 텍스트 줄 */
   .skeleton-file-item {
     display: flex;
     align-items: center;
@@ -299,6 +294,40 @@
     transition: width 0.4s ease;
   }
   .progress-fill.complete { background: var(--success); transition: width 0.2s ease; }
+
+  /* ================================================================
+     반응형 — v5.3
+     ================================================================ */
+
+  /* ── 태블릿 (768px ~ 1024px) ── */
+  @media (max-width: 1024px) {
+    /* 좌우 2열 → 좌 240px + 우 1fr */
+    .analyze-wrap {
+      grid-template-columns: 240px 1fr;
+      gap: 16px;
+    }
+
+    .file-list    { max-height: 160px; }
+    .compare-device-list { max-height: 220px; }
+  }
+
+  /* ── 모바일 (768px 미만) ── */
+  @media (max-width: 768px) {
+    /* 2열 → 1열 */
+    .analyze-wrap {
+      grid-template-columns: 1fr;
+    }
+
+    /* 왼쪽 패널이 위에, 오른쪽 패널이 아래 */
+    .panel-left  { order: 1; }
+    .panel-right { order: 2; }
+
+    .file-list    { max-height: 140px; }
+    .compare-device-list { max-height: 180px; }
+
+    .answer-box   { min-height: 180px; }
+    .answer-empty { height: 180px; }
+  }
 </style>
 {% endblock %}
 
@@ -335,8 +364,6 @@
 
     <div class="card">
       <p class="section-title">백업 파일</p>
-      <!-- 초기값: 의도적 empty state (장비 선택 전) → skeleton 대상 아님
-           장비 선택 후 파일 로딩 시 JS에서 skeleton-file-item으로 교체 -->
       <div class="file-list" id="fileList">
         <div class="file-empty">장비를 먼저 선택하세요.</div>
       </div>
@@ -426,7 +453,6 @@
         비교할 장비를 2대 이상 선택하세요.<br>
         인덱싱된 장비만 비교에 포함됩니다.
       </p>
-      <!-- skeleton: 4행. loadDevices() → renderCompareDeviceList() 완료 시 innerHTML 교체로 자동 제거 -->
       <div class="compare-device-list" id="compareDeviceList">
         <div class="skeleton-compare-item">
           <div class="skeleton skel-check"></div>
@@ -552,7 +578,6 @@
   const compareAnswerBox     = document.getElementById('compareAnswerBox');
   const compareAnswerMeta    = document.getElementById('compareAnswerMeta');
 
-  // skeleton 템플릿 (재사용)
   const SKEL_FILE_ITEM = `
     <div class="skeleton-file-item">
       <div class="skeleton skel-icon"></div>
@@ -594,10 +619,8 @@
         deviceSelect.appendChild(opt);
       });
 
-      // 장비 목록 로드 완료 → compareDeviceList skeleton 교체
       renderCompareDeviceList();
     } catch (e) {
-      // 로드 실패 시 skeleton 제거 후 오류 메시지 표시
       compareDeviceList.innerHTML =
         '<div class="file-empty">장비 목록을 불러오지 못했습니다.</div>';
       console.error('장비 목록 로드 실패:', e);
@@ -671,7 +694,6 @@
       return;
     }
 
-    // 파일 목록 로딩 시 skeleton file items 표시 (3개)
     fileList.innerHTML = SKEL_FILE_ITEM.repeat(3);
 
     try {
@@ -711,7 +733,6 @@
         selOpt.dataset.hostname = realHostname;
       }
 
-      // skeleton 제거 후 실제 파일 아이템 렌더링
       fileList.innerHTML = '';
       unique.forEach(f => {
         const item         = document.createElement('div');

@@ -120,7 +120,7 @@
     font-size: 14px;
   }
 
-  /* ── skeleton tbody 행 ────────────────────────────────── */
+  /* ── skeleton tbody 행 ── */
   tbody .skeleton-row td {
     border-bottom: 1px solid rgba(42, 42, 42, 0.6);
     vertical-align: middle;
@@ -285,6 +285,52 @@
     font-size: 14px;
     font-family: var(--mono);
   }
+
+  /* ================================================================
+     반응형 — v5.3
+     ================================================================ */
+
+  /* ── 태블릿 (768px ~ 1024px) ── */
+  @media (max-width: 1024px) {
+    /* 완료 시각 컬럼 숨김 (메인 테이블 3번째) */
+    section > .card > table th:nth-child(3),
+    section > .card > table td:nth-child(3) { display: none; }
+
+    /* detail-table: 가로 스크롤로 처리 (컬럼 숨김 없음) */
+    .detail-row td { padding: 0; }
+    .detail-table-wrap { overflow-x: auto; padding: 0 14px; }
+  }
+
+  /* ── 모바일 (768px 미만) ── */
+  @media (max-width: 768px) {
+    /* 전체 컬럼 숨김 (메인 테이블 4번째) */
+    section > .card > table th:nth-child(4),
+    section > .card > table td:nth-child(4) { display: none; }
+
+    td, th { padding: 10px 10px; font-size: 12px; }
+
+    /* detail-table: device_type 컬럼만 숨김, 나머지 가로 스크롤 */
+    .detail-table th:nth-child(3),
+    .detail-table td:nth-child(3) { display: none; }
+
+    /* dialog 모달: 거의 풀스크린 */
+    #file-modal {
+      width: 96vw;
+      max-height: 90vh;
+      border-radius: 8px;
+    }
+
+    .modal-header { padding: 12px 14px; }
+    .modal-title  { font-size: 12px; }
+
+    .modal-search-wrap { padding: 8px 14px; }
+    .modal-search { font-size: 11px; }
+
+    .file-content {
+      font-size: 11px;
+      padding: 12px 14px;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -317,7 +363,7 @@
         <th></th>
       </tr>
     </thead>
-    <!-- skeleton: 5행. loadHistory() 완료 시 tbody.innerHTML 교체로 자동 제거 -->
+    <!-- skeleton: 5행 -->
     <tbody id="history-tbody">
       <tr class="skeleton-row">
         <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
@@ -409,7 +455,6 @@
     const limit = document.getElementById('limit-select').value;
     const tbody = document.getElementById('history-tbody');
 
-    // limit-select 변경 시 skeleton rows 재삽입 (재로딩 피드백)
     tbody.innerHTML = `
       <tr class="skeleton-row">
         <td><div class="skeleton skeleton-cell" style="width:40px;"></div></td>
@@ -478,6 +523,7 @@
           if (handle401(res)) return;
           const results = await res.json();
           content.innerHTML = `
+            <div class="detail-table-wrap">
             <table class="detail-table">
               <thead>
                 <tr>
@@ -514,7 +560,8 @@
                     </td>
                   </tr>`).join('')}
               </tbody>
-            </table>`;
+            </table>
+            </div>`;
         } catch (e) {
           content.textContent = '데이터를 불러올 수 없습니다.';
         }

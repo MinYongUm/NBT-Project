@@ -212,9 +212,7 @@
     font-size: 13px;
   }
 
-  /* ── skeleton device-row ──────────────────────────────────
-     실제 .device-row와 동일한 flex 구조 + col 너비를 그대로 사용.
-     .skeleton-device-row 는 hover 효과 없이 shimmer만 표시.      */
+  /* ── skeleton device-row ── */
   .skeleton-device-row {
     display: flex;
     align-items: center;
@@ -327,6 +325,82 @@
     color: var(--danger);
     font-family: var(--mono);
   }
+
+  /* ================================================================
+     반응형 — v5.3
+     ================================================================ */
+
+  /* ── 태블릿 (768px ~ 1024px) ── */
+  @media (max-width: 1024px) {
+    /* hostname, desc 컬럼 숨김 */
+    .col-hostname { display: none; }
+    .col-desc     { display: none; }
+
+    /* IP 컬럼 너비 확장 */
+    .col-ip   { width: 130px; }
+    .col-type { width: 110px; }
+
+    /* 슬라이드 패널 너비 축소 */
+    .side-panel { width: 280px; padding: 18px; }
+
+    /* 검색 인풋 너비 축소 */
+    .search-input       { width: 160px; }
+    .search-input:focus { width: 190px; }
+  }
+
+  /* ── 모바일 (768px 미만) ── */
+  @media (max-width: 768px) {
+    /* 1열 레이아웃 */
+    .devices-layout { flex-direction: column; }
+    .devices-main   { width: 100%; }
+
+    /* type 컬럼 추가 숨김 → 그룹 + IP + 작업만 표시 */
+    .col-type { display: none; }
+
+    /* IP 컬럼 flex:1로 확장 */
+    .col-ip { width: auto; flex: 1; text-align: left; }
+
+    /* page-header: 세로 정렬 */
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    /* filter-bar: 검색 인풋 full width */
+    .filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .search-input-wrap { margin-left: 0; }
+    .search-input       { width: 100%; }
+    .search-input:focus { width: 100%; }
+
+    /* aside 패널: 오버레이로 전환 */
+    .side-panel {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 100%;
+      max-width: 360px;
+      height: 100vh;
+      border-radius: 0;
+      border-left: 1px solid var(--border);
+      z-index: 200;
+      overflow-y: auto;
+      transition: right 0.25s ease;
+      display: block;        /* 항상 DOM에 존재 — right로 숨김 */
+    }
+    .side-panel.open { right: 0; }
+
+    /* 패널 열릴 때 배경 딤 처리 */
+    .panel-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 199;
+    }
+    .panel-backdrop.show { display: block; }
+  }
 </style>
 {% endblock %}
 
@@ -335,6 +409,9 @@
   <h1 class="page-title">장비 관리</h1>
   <button class="btn btn-primary" onclick="openAddPanel()">&#43; 장비 추가</button>
 </div>
+
+<!-- 모바일 패널 배경 딤 -->
+<div class="panel-backdrop" id="panel-backdrop" onclick="closePanel()"></div>
 
 <div class="devices-layout">
 
@@ -367,7 +444,7 @@
         <span class="col-desc">설명</span>
         <span class="col-actions">작업</span>
       </div>
-      <!-- skeleton: 6행. loadDevices() → renderList() 완료 시 innerHTML 교체로 자동 제거 -->
+      <!-- skeleton: 6행 -->
       <div class="table-scroll" id="device-list">
         <div class="skeleton-device-row">
           <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
@@ -422,7 +499,7 @@
 
   </section>
 
-  <!-- 우측 슬라이드 패널 — <aside> : 본문과 직접 관련은 있으나 독립적 부가 정보 -->
+  <!-- 우측 슬라이드 패널 — <aside> -->
   <aside class="side-panel" id="side-panel">
     <div class="panel-header">
       <span class="panel-title" id="panel-title">장비 추가</span>
@@ -486,7 +563,6 @@
   let _allDevices  = [];
   let _activeGroup = 'all';
 
-  // skeleton 행 템플릿 (필터 변경 시 재사용)
   const SKEL_DEVICE_ROW = `
     <div class="skeleton-device-row">
       <span class="col-group"><div class="skeleton skeleton-badge"></div></span>
@@ -516,7 +592,6 @@
     document.querySelectorAll('.btn-filter').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.group === group);
     });
-    // 필터 전환 시 skeleton 재표시 (데이터는 이미 로드됐으므로 즉시 교체되지만 시각적 일관성 유지)
     document.getElementById('device-list').innerHTML = SKEL_DEVICE_ROW.repeat(4);
     applyFilter();
   }
@@ -597,6 +672,14 @@
     if (row) row.classList.add('selected');
   }
 
+  // ── 패널 backdrop 헬퍼 ──
+  function showBackdrop() {
+    document.getElementById('panel-backdrop').classList.add('show');
+  }
+  function hideBackdrop() {
+    document.getElementById('panel-backdrop').classList.remove('show');
+  }
+
   function openAddPanel() {
     _mode = 'add';
     _editId = null;
@@ -609,6 +692,7 @@
     document.getElementById('delete-confirm').classList.remove('show');
     hideError();
     document.getElementById('side-panel').classList.add('open');
+    showBackdrop();
   }
 
   function openEditPanel(id, group, type, ip, desc) {
@@ -623,6 +707,7 @@
     document.getElementById('delete-confirm').classList.remove('show');
     hideError();
     document.getElementById('side-panel').classList.add('open');
+    showBackdrop();
   }
 
   function openDeactivate(id, ip) {
@@ -635,6 +720,7 @@
     document.getElementById('side-panel').classList.remove('open');
     document.querySelectorAll('.device-row').forEach(r => r.classList.remove('selected'));
     hideError();
+    hideBackdrop();
     _editId = null;
   }
 

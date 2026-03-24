@@ -385,15 +385,11 @@
        shimmer 애니메이션 + 공통 skeleton 컴포넌트 클래스
        ================================================================ */
 
-    /* shimmer keyframe
-       좌 → 우로 밝은 빛이 흘러가는 효과.
-       배경색(#1a1a1a)보다 살짝 밝은 #252525 포인트로 대비 유지. */
     @keyframes skeleton-shimmer {
       0%   { background-position: -600px 0; }
       100% { background-position:  600px 0; }
     }
 
-    /* 모든 skeleton 요소의 공통 기반 */
     .skeleton {
       background: linear-gradient(
         90deg,
@@ -407,7 +403,6 @@
       flex-shrink: 0;
     }
 
-    /* ── 텍스트 줄 ── */
     .skeleton-text {
       height: 14px;
       margin-bottom: 8px;
@@ -416,7 +411,6 @@
     .skeleton-text.medium { width: 62%; }
     .skeleton-text.long   { width: 88%; }
 
-    /* ── Stat 카드 숫자/레이블 ── */
     .skeleton-stat-num {
       height: 38px;
       width: 72px;
@@ -427,13 +421,11 @@
       width: 88px;
     }
 
-    /* ── 차트 플레이스홀더 ── */
     .skeleton-chart {
       height: 200px;
       border-radius: var(--radius-sm);
     }
 
-    /* ── 테이블 행 ── */
     .skeleton-row {
       display: flex;
       gap: 12px;
@@ -449,36 +441,128 @@
       border-radius: 4px;
     }
 
-    /* ── badge 형태 ── */
     .skeleton-badge {
       height: 20px;
       width: 54px;
       border-radius: 10px;
     }
 
-    /* ── 제목 줄 (카드 헤더 등) ── */
     .skeleton-title {
       height: 18px;
       width: 140px;
       margin-bottom: 4px;
     }
 
-    /* ── 가시성 제어 ──────────────────────────────────────────
-       skeleton-wrapper : 로딩 중 표시 (기본 block)
-       content-wrapper  : 로딩 중 숨김 (기본 none)
-
-       JS에서 hideSkeleton() 호출 시:
-         skeleton-wrapper → hidden (display:none)
-         content-wrapper  → visible (display:block or flex)
-       ────────────────────────────────────────────────────── */
     .skeleton-wrapper         { display: block; }
     .skeleton-wrapper.hidden  { display: none !important; }
 
     .content-wrapper          { display: none; }
     .content-wrapper.visible  { display: block; }
-
-    /* flex 컨텍스트가 필요한 content-wrapper (stat 카드 그리드 등) */
     .content-wrapper.visible-flex { display: flex; }
+
+    /* ================================================================
+       반응형 레이아웃 — v5.3
+       breakpoint:
+         1024px 이상  → 데스크톱 (기본)
+         768px~1024px → 태블릿 (아이콘만, padding 축소)
+         768px 미만   → 모바일 (햄버거 메뉴)
+       ================================================================ */
+
+    /* ── 햄버거 버튼 (모바일 전용) ── */
+    .nav-hamburger {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: color .15s, border-color .15s;
+    }
+
+    .nav-hamburger:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    .nav-hamburger svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    /* ── 모바일 드롭다운 메뉴 ── */
+    .nav-mobile {
+      display: none;
+      flex-direction: column;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px 12px;
+      gap: 2px;
+      position: sticky;
+      top: var(--nav-h);
+      z-index: 99;
+    }
+
+    .nav-mobile.open {
+      display: flex;
+    }
+
+    .nav-mobile .nav-link {
+      padding: 10px 12px;
+      font-size: 14px;
+      border-radius: var(--radius-sm);
+    }
+
+    .nav-mobile .nav-link svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── 태블릿 (768px ~ 1024px) ── */
+    @media (max-width: 1024px) {
+      .nav { padding: 0 16px; }
+
+      /* 메뉴 텍스트 숨기고 아이콘만 표시 */
+      .nav-link span { display: none; }
+
+      .nav-link {
+        padding: 6px 10px;
+        gap: 0;
+      }
+
+      .nav-logo-text { display: none; }
+
+      .main {
+        padding: 24px 16px;
+      }
+
+      /* 로그아웃 버튼 텍스트 숨김 */
+      .btn-logout span { display: none; }
+      .btn-logout { padding: 6px 10px; }
+    }
+
+    /* ── 모바일 (768px 미만) ── */
+    @media (max-width: 768px) {
+      .nav-links     { display: none; }    /* 데스크톱 메뉴 숨김 */
+      .nav-right     { display: none; }    /* 로그아웃 버튼 숨김 */
+      .nav-hamburger { display: flex; }    /* 햄버거 버튼 표시 */
+
+      .nav-logo-text { display: block; }   /* 로고 텍스트 다시 표시 */
+      .nav { padding: 0 16px; }
+
+      .main {
+        padding: 16px 12px;
+      }
+    }
   </style>
 
   {% block head %}{% endblock %}
@@ -499,7 +583,7 @@
     <span class="nav-logo-text">NBT</span>
   </a>
 
-  <!-- 메뉴 -->
+  <!-- 메뉴 (데스크톱 / 태블릿) -->
   <div class="nav-links">
 
     <a href="/"        class="nav-link {% if request.url.path == '/' %}active{% endif %}">
@@ -509,14 +593,14 @@
         <rect x="14" y="14" width="7" height="7"/>
         <rect x="3" y="14" width="7" height="7"/>
       </svg>
-      대시보드
+      <span>대시보드</span>
     </a>
 
     <a href="/backup"  class="nav-link {% if request.url.path == '/backup' %}active{% endif %}">
       <svg viewBox="0 0 24 24">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
-      백업 실행
+      <span>백업 실행</span>
     </a>
 
     <a href="/history" class="nav-link {% if request.url.path == '/history' %}active{% endif %}">
@@ -524,7 +608,7 @@
         <circle cx="12" cy="12" r="10"/>
         <polyline points="12 6 12 12 16 14"/>
       </svg>
-      백업 이력
+      <span>백업 이력</span>
     </a>
 
     <a href="/diff"    class="nav-link {% if request.url.path == '/diff' %}active{% endif %}">
@@ -533,7 +617,7 @@
         <line x1="12" y1="20" x2="12" y2="4"/>
         <line x1="6"  y1="20" x2="6"  y2="14"/>
       </svg>
-      Config Diff
+      <span>Config Diff</span>
     </a>
 
     <a href="/devices" class="nav-link {% if request.url.path == '/devices' %}active{% endif %}">
@@ -543,7 +627,7 @@
         <line x1="6" y1="6" x2="6.01" y2="6"/>
         <line x1="6" y1="18" x2="6.01" y2="18"/>
       </svg>
-      장비 관리
+      <span>장비 관리</span>
     </a>
 
     <a href="/analyze" class="nav-link {% if request.url.path == '/analyze' %}active{% endif %}">
@@ -552,7 +636,7 @@
         <path d="M21 21l-4.35-4.35"/>
         <path d="M11 8v6M8 11h6"/>
       </svg>
-      AI 분석
+      <span>AI 분석</span>
     </a>
 
   </div>
@@ -565,12 +649,55 @@
         <polyline points="16 17 21 12 16 7"/>
         <line x1="21" y1="12" x2="9" y2="12"/>
       </svg>
-      로그아웃
+      <span>로그아웃</span>
     </button>
   </div>
 
+  <!-- 햄버거 버튼 (모바일 전용) -->
+  <button class="nav-hamburger" id="hamburgerBtn" aria-label="메뉴 열기">
+    <svg id="hamburgerIcon" viewBox="0 0 24 24">
+      <line x1="3" y1="6"  x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+
 </nav>
 </header>
+
+<!-- 모바일 드롭다운 메뉴 -->
+<nav class="nav-mobile" id="navMobile">
+  <a href="/"        class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    대시보드
+  </a>
+  <a href="/backup"  class="nav-link {% if request.url.path == '/backup' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    백업 실행
+  </a>
+  <a href="/history" class="nav-link {% if request.url.path == '/history' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    백업 이력
+  </a>
+  <a href="/diff"    class="nav-link {% if request.url.path == '/diff' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Config Diff
+  </a>
+  <a href="/devices" class="nav-link {% if request.url.path == '/devices' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    장비 관리
+  </a>
+  <a href="/analyze" class="nav-link {% if request.url.path == '/analyze' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+    AI 분석
+  </a>
+  <div style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
+    <button class="btn-logout" id="logoutBtnMobile" style="width:100%; justify-content:center;">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      로그아웃
+    </button>
+  </div>
+</nav>
 
 <!-- 메인 콘텐츠 -->
 <main class="main">
@@ -588,6 +715,45 @@
 
 <!-- 공통 스크립트 -->
 <script>
+  // ── 햄버거 메뉴 토글 — v5.3 ──────────────────────────────────
+  (function () {
+    const btn  = document.getElementById('hamburgerBtn');
+    const menu = document.getElementById('navMobile');
+    const icon = document.getElementById('hamburgerIcon');
+
+    if (!btn) return;
+
+    const ICON_OPEN  = '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
+    const ICON_CLOSE = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+
+    btn.addEventListener('click', function () {
+      const isOpen = menu.classList.toggle('open');
+      icon.innerHTML = isOpen ? ICON_CLOSE : ICON_OPEN;
+      btn.setAttribute('aria-label', isOpen ? '메뉴 닫기' : '메뉴 열기');
+    });
+
+    // 메뉴 외부 클릭 시 닫기
+    document.addEventListener('click', function (e) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+        icon.innerHTML = ICON_OPEN;
+      }
+    });
+
+    // 모바일 로그아웃 버튼
+    const logoutMobile = document.getElementById('logoutBtnMobile');
+    if (logoutMobile) {
+      logoutMobile.addEventListener('click', async function () {
+        this.disabled = true;
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' });
+        } finally {
+          window.location.href = '/login';
+        }
+      });
+    }
+  })();
+
   // ── 로그아웃 ─────────────────────────────────────────────────
   document.getElementById('logoutBtn').addEventListener('click', async function () {
     this.disabled = true;
@@ -599,8 +765,6 @@
   });
 
   // ── 전역 401 핸들러 ───────────────────────────────────────────
-  // 각 페이지의 fetch 호출에서 401 수신 시 /login으로 리다이렉트
-  // 사용법: 각 페이지 fetch 응답 처리에서 handle401(res) 호출
   function handle401(response) {
     if (response.status === 401) {
       window.location.href = '/login';
@@ -610,16 +774,6 @@
   }
 
   // ── Skeleton UI 헬퍼 — v5.3 ───────────────────────────────────
-  //
-  // 사용 패턴 (각 페이지 공통):
-  //   1) 페이지 로드 즉시: showSkeleton('xxx-skeleton') → shimmer 표시
-  //   2) fetch 완료 후  : hideSkeleton('xxx-skeleton', 'xxx-content') → 실제 콘텐츠 표시
-  //
-  // wrapperId  : skeleton-wrapper 요소의 id
-  // contentId  : content-wrapper 요소의 id
-  // flexMode   : true → content-wrapper에 visible-flex 클래스 적용 (flex 레이아웃 필요 시)
-  // ─────────────────────────────────────────────────────────────
-
   function showSkeleton(wrapperId) {
     const el = document.getElementById(wrapperId);
     if (el) el.classList.remove('hidden');
